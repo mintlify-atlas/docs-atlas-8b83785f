@@ -1,0 +1,104 @@
+{
+  "projectType": "saas",
+  "projectName": "WhatsApp WAHA Dashboard",
+  "projectDescription": "Schedule and send messages to multiple WhatsApp groups automatically with campaign management and admin controls.",
+  "theme": "almond",
+  "primaryColor": "#25D366",
+  "lightColor": "#DCF8C6",
+  "darkColor": "#128C7E",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/authentication",
+              "features/campaign-management",
+              "features/message-scheduling",
+              "features/admin-dashboard",
+              "features/notifications"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/setup-whatsapp",
+              "guides/creating-campaigns",
+              "guides/message-scheduler",
+              "guides/user-management"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/vercel",
+              "deployment/scheduler-setup",
+              "deployment/environment-variables"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "tRPC Routers",
+            "pages": [
+              "api/message-campaign",
+              "api/admin",
+              "api/user",
+              "api/notification"
+            ]
+          },
+          {
+            "group": "Database Schema",
+            "pages": [
+              "api/schema"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Secure user authentication with role-based access control (Admin, User, Guest)",
+    "Campaign creation and management with progress tracking",
+    "Automated message scheduling with timezone support and recurrence options",
+    "Admin dashboard for user approval and session management",
+    "Multi-channel notifications via WhatsApp and email",
+    "Background scheduler service for automated message delivery",
+    "WhatsApp group management with search and pagination",
+    "Dynamic message templates with placeholder support"
+  ],
+  "publicApiSurface": [
+    "messageCampaignRouter.createCampaign",
+    "messageCampaignRouter.getCampaigns",
+    "messageCampaignRouter.getCompletedCampaigns",
+    "messageCampaignRouter.updateCampaign",
+    "messageCampaignRouter.deleteCampaign",
+    "adminRouter.getPendingUsers",
+    "adminRouter.getApprovedUsers",
+    "adminRouter.approveUser",
+    "adminRouter.revokeAccess",
+    "adminRouter.deleteUser",
+    "adminRouter.addNewUser",
+    "adminRouter.makeAdmin",
+    "adminRouter.getWhatsAppSessions",
+    "adminRouter.getWhatsAppGroups",
+    "adminRouter.getActiveCampaigns",
+    "userRouter.getCurrentUser",
+    "userRouter.getWhatsAppSession",
+    "userRouter.getWhatsAppGroups",
+    "notificationRouter.sendNotification"
+  ]
+}
