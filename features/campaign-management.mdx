@@ -1,0 +1,431 @@
+---
+title: 'Campaign Management'
+description: 'Create, update, and track WhatsApp message campaigns with progress monitoring'
+icon: 'bullhorn'
+---
+
+## Overview
+
+Campaign Management enables users to create scheduled WhatsApp message campaigns for groups or individuals. Each campaign consists of multiple scheduled messages with automatic progress tracking and delivery monitoring.
+
+## Campaign Lifecycle
+
+<Steps>
+  <Step title="Create Campaign">
+    Define campaign parameters including target audience, date range, message template, and scheduling options.
+  </Step>
+  
+  <Step title="Schedule Messages">
+    Messages are automatically generated based on the date range and recurrence pattern.
+  </Step>
+  
+  <Step title="Track Progress">
+    Monitor campaign status, message delivery, and completion percentage in real-time.
+  </Step>
+  
+  <Step title="Complete or Update">
+    Campaigns can be updated (before messages are sent) or marked complete when all messages are delivered.
+  </Step>
+</Steps>
+
+## Campaign Status
+
+Campaigns progress through different states:
+
+```typescript prisma/schema.prisma:19
+enum CampaignStatus {
+  DRAFT        // Not yet scheduled
+  SCHEDULED    // Ready to send messages
+  IN_PROGRESS  // Some messages sent
+  COMPLETED    // All messages delivered
+  CANCELLED    // Campaign stopped by user
+  FAILED       // Delivery errors occurred
+}
+```
+
+## Creating a Campaign
+
+### API Endpoint
+
+```typescript src/server/api/routers/messageCampaign.ts:9
+createCampaign: protectedProcedure
+  .input(
+    z.object({
+      groupId: z.string(),
+      groupName: z.string(),
+      sessionId: z.string(),
+      title: z.string().optional(),
+      targetAmount: z.string().optional(),
+      startDate: z.string(),
+      endDate: z.string(),
+      messageTime: z.string().regex(/^\d{1,2}:\d{2}$/),
+      timeZone: z.string().default('America/Chicago'),
+      messageTemplate: z.string(),
+      isFreeForm: z.boolean().default(false),
+      isRecurring: z.boolean(),
+      recurrence: z.enum(['DAILY', 'WEEKLY', 'SEMI_MONTHLY', 'MONTHLY', 'SEMI_ANNUALLY', 'ANNUALLY']).default('DAILY'),
+      audienceType: z.enum(['groups', 'individuals']).default('groups'),
+    })
+  )
+  .mutation(async ({ ctx, input }) => {
+    // Campaign creation logic
+  })
+```
+
+### Input Parameters
+
+<ParamField path="groupId" type="string" required>
+  WhatsApp group ID or contact ID for the campaign target
+</ParamField>
+
+<ParamField path="groupName" type="string" required>
+  Display name for the group or contact
+</ParamField>
+
+<ParamField path="sessionId" type="string" required>
+  WhatsApp session ID to use for sending messages
+</ParamField>
+
+<ParamField path="title" type="string">
+  Optional campaign title (displayed in messages unless isFreeForm is true)
+</ParamField>
+
+<ParamField path="targetAmount" type="string">
+  Optional contribution target amount for fundraising campaigns
+</ParamField>
+
+<ParamField path="startDate" type="string" required>
+  ISO 8601 date string for campaign start (e.g., "2026-03-10")
+</ParamField>
+
+<ParamField path="endDate" type="string" required>
+  ISO 8601 date string for campaign end (must be after startDate)
+</ParamField>
+
+<ParamField path="messageTime" type="string" required>
+  Time to send messages daily in HH:MM format (e.g., "09:30")
+</ParamField>
+
+<ParamField path="timeZone" type="string" default="America/Chicago">
+  IANA timezone identifier for scheduling (e.g., "America/New_York")
+</ParamField>
+
+<ParamField path="messageTemplate" type="string" required>
+  Message content. Use asterisks (*) to separate messages for recurring campaigns
+</ParamField>
+
+<ParamField path="isFreeForm" type="boolean" default={false}>
+  If true, only sends the message template without campaign metadata
+</ParamField>
+
+<ParamField path="isRecurring" type="boolean" required>
+  Whether to send messages on a recurring schedule
+</ParamField>
+
+<ParamField path="recurrence" type="enum" default="DAILY">
+  Recurrence pattern: DAILY, WEEKLY, SEMI_MONTHLY, MONTHLY, SEMI_ANNUALLY, ANNUALLY
+</ParamField>
+
+<ParamField path="audienceType" type="enum" default="groups">
+  Target audience type: 'groups' or 'individuals'
+</ParamField>
+
+### Message Template Variables
+
+Templates support dynamic variables:
+
+- `{days_left}` - Replaced with remaining days in campaign
+
+<CodeGroup>
+```text Standard Format
+Campaign Title: Spring Fundraiser
+Campaign Start Date: 2026-03-10
+Campaign End Date: 2026-03-20
+Contribution Target Amount: $5000
+Days Remaining: 7
+
+Please consider contributing today! Only {days_left} days left.
+```
+
+```text Free Form (isFreeForm: true)
+Please consider contributing today! Only {days_left} days left.
+```
+</CodeGroup>
+
+### Multiple Message Sequences
+
+For recurring campaigns, separate messages with asterisks to create unique content for each occurrence:
+
+```text
+Welcome to our campaign! * 
+Day 2 - Thank you for your support! * 
+Day 3 - We're halfway there! * 
+Final day - Last chance to contribute!
+```
+
+<Warning>
+  The number of messages must match the calculated occurrences. For example, a 4-day DAILY campaign requires exactly 4 messages separated by asterisks, or one message without asterisks to repeat.
+</Warning>
+
+## Recurrence Patterns
+
+Recurrence intervals are mapped to day counts:
+
+```typescript src/server/api/routers/messageCampaign.ts:31
+const recurrenceDaysMap = {
+  DAILY: 1,
+  WEEKLY: 7,
+  SEMI_MONTHLY: 15,
+  MONTHLY: 30,
+  SEMI_ANNUALLY: 182,
+  ANNUALLY: 365,
+}
+```
+
+<Tabs>
+  <Tab title="Daily">
+    Messages sent every day at the specified time
+    ```typescript
+    {
+      isRecurring: true,
+      recurrence: 'DAILY'
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Weekly">
+    Messages sent every 7 days
+    ```typescript
+    {
+      isRecurring: true,
+      recurrence: 'WEEKLY'
+    }
+    ```
+  </Tab>
+  
+  <Tab title="Monthly">
+    Messages sent every 30 days
+    ```typescript
+    {
+      isRecurring: true,
+      recurrence: 'MONTHLY'
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Viewing Campaigns
+
+### Active Campaigns
+
+Get campaigns with upcoming scheduled messages:
+
+```typescript src/server/api/routers/messageCampaign.ts:251
+getCampaigns: protectedProcedure
+  .query(async ({ ctx }) => {
+    return await ctx.db.messageCampaign.findMany({
+      where: {
+        isDeleted: false,
+        messages: {
+          some: {
+            scheduledAt: { gt: new Date() },
+          }
+        },
+        session: {
+          userId: ctx.session.user.id,
+        }
+      },
+      include: {
+        group: true,
+        messages: true,
+      },
+      orderBy: {
+        createdAt: 'desc'
+      },
+    });
+  })
+```
+
+### Completed Campaigns
+
+Get campaigns where all messages have been sent or scheduled time has passed:
+
+```typescript src/server/api/routers/messageCampaign.ts:185
+getCompletedCampaigns: protectedProcedure
+  .query(async ({ ctx }) => {
+    return await ctx.db.messageCampaign.findMany({
+      where: {
+        isDeleted: false,
+        messages: {
+          every: {
+            OR: [
+              { isSent: true },
+              { scheduledAt: { lt: new Date() } },
+            ]
+          }
+        },
+        session: {
+          userId: ctx.session.user.id,
+        }
+      },
+      orderBy: {
+        endDate: 'desc'
+      },
+    });
+  })
+```
+
+## Updating Campaigns
+
+<Note>
+  Campaigns can only be updated if no messages have been sent yet. Once messages start sending, the campaign becomes read-only.
+</Note>
+
+```typescript src/server/api/routers/messageCampaign.ts:403
+// Check if any messages have already been sent
+const hasSentMessages = existingCampaign.messages?.some((m: any) => m.isSent) ?? false;
+if (hasSentMessages) {
+  throw new Error("Cannot edit campaign with messages that have already been sent");
+}
+```
+
+The update process:
+
+<Steps>
+  <Step title="Validate Access">
+    Verify the campaign belongs to the current user and exists
+  </Step>
+  
+  <Step title="Check Message Status">
+    Ensure no messages have been sent yet
+  </Step>
+  
+  <Step title="Mark Old Messages as Deleted">
+    Soft delete all unsent messages from the original campaign
+  </Step>
+  
+  <Step title="Regenerate Messages">
+    Create new messages based on updated parameters
+  </Step>
+</Steps>
+
+## Deleting Campaigns
+
+Campaigns are soft-deleted to preserve historical data:
+
+```typescript src/server/api/routers/messageCampaign.ts:319
+deleteCampaign: protectedProcedure
+  .input(z.object({
+    campaignId: z.string(),
+  }))
+  .mutation(async ({ ctx, input }) => {
+    await ctx.db.messageCampaign.update({
+      where: { 
+        id: input.campaignId, 
+        session: { userId: ctx.session.user.id } 
+      },
+      data: { 
+        isDeleted: true,
+        messages: {
+          updateMany: {
+            where: {
+              MessageCampaignId: input.campaignId,
+            },
+            data: {
+              isDeleted: true,
+            },
+          }
+        },
+      },
+    });
+
+    return { success: true };
+  })
+```
+
+## Campaign Data Model
+
+```typescript prisma/schema.prisma:77
+model MessageCampaign {
+  id           String         @id @default(cuid())
+  sessionId    String
+  groupId      String
+  title        String?
+  targetAmount String?
+  startDate    DateTime
+  endDate      DateTime
+  sendTimeUtc  DateTime
+  timeZone     String         @default("America/Chicago")
+  template     String
+  messages     Message[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  isDeleted    Boolean        @default(false)
+  isEdited     Boolean        @default(false)
+  isCompleted  Boolean        @default(false)
+  status       CampaignStatus @default(SCHEDULED)
+  recurrence   Recurrence?
+  isRecurring  Boolean        @default(false)
+  nextSendAt   DateTime?
+
+  session      WhatsAppSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  group        WhatsAppGroup   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+}
+```
+
+## Progress Tracking
+
+Track campaign progress through message status:
+
+<CardGroup cols={3}>
+  <Card title="Total Messages" icon="envelope">
+    Count of all non-deleted messages in the campaign
+  </Card>
+  <Card title="Sent Messages" icon="check">
+    Messages where `isSent = true`
+  </Card>
+  <Card title="Failed Messages" icon="xmark">
+    Messages where `isFailed = true`
+  </Card>
+</CardGroup>
+
+Calculate completion percentage:
+
+```typescript
+const totalMessages = campaign.messages.filter(m => !m.isDeleted).length;
+const sentMessages = campaign.messages.filter(m => m.isSent).length;
+const completionPercentage = (sentMessages / totalMessages) * 100;
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Timezone Handling">
+    - Always specify the timezone for accurate scheduling
+    - Messages are stored in UTC but scheduled in the specified timezone
+    - Use IANA timezone identifiers (e.g., "America/New_York")
+  </Accordion>
+  
+  <Accordion title="Message Templates">
+    - Keep messages concise for better engagement
+    - Use the {days_left} variable for urgency
+    - Test templates before creating large campaigns
+  </Accordion>
+  
+  <Accordion title="Campaign Planning">
+    - Verify date ranges before creating campaigns
+    - For recurring campaigns with sequences, calculate required message count
+    - Use free-form mode for simple announcements
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Message Scheduling" icon="clock" href="/features/message-scheduling">
+    Learn about timezone handling and recurrence patterns
+  </Card>
+  <Card title="Admin Dashboard" icon="gauge" href="/features/admin-dashboard">
+    Monitor all campaigns across users
+  </Card>
+</CardGroup>

@@ -1,0 +1,524 @@
+---
+title: 'Message Scheduler Service'
+description: 'Understanding the background scheduler, deployment strategies, and monitoring'
+icon: 'clock'
+---
+
+## Overview
+
+The Message Scheduler is a background service that automatically processes and sends scheduled WhatsApp messages. It runs independently from the main web application, continuously checking for pending messages and dispatching them at the scheduled time.
+
+## How the Scheduler Works
+
+### Execution Cycle
+
+The scheduler operates on a simple but effective polling mechanism:
+
+<Steps>
+  <Step title="Check for Pending Messages">
+    Every 30 seconds, the scheduler queries the database for messages that:
+    - Have `isSent: false`
+    - Have `isDeleted: false`
+    - Have `isPicked: false`
+    - Are scheduled for current time or up to 2 minutes ago
+  </Step>
+
+  <Step title="Mark Messages as Picked">
+    To prevent duplicate processing, messages are marked with `isPicked: true` before sending.
+  </Step>
+
+  <Step title="Send Messages via WAHA">
+    For each message, the scheduler:
+    - Retrieves the associated WhatsApp session
+    - Calls the WAHA API `/api/sendText` endpoint
+    - Includes message content and target group/contact ID
+  </Step>
+
+  <Step title="Update Status">
+    After sending:
+    - Mark message as `isSent: true`
+    - Record `sentAt` timestamp
+    - Update campaign status if all messages sent
+  </Step>
+
+  <Step title="Handle Errors">
+    If sending fails:
+    - Log detailed error information
+    - Mark campaign status as FAILED
+    - Continue processing other messages
+  </Step>
+</Steps>
+
+### Time Window Logic
+
+The scheduler uses a 2-minute lookback window:
+
+```typescript
+const now = new Date();
+const two_minutesAgo = new Date(now.getTime() - 2 * 60 * 1000);
+
+const messagesToSend = pendingMessages.filter(message => {
+    return message.scheduledAt <= now && message.scheduledAt >= two_minutesAgo;
+});
+```
+
+<Info>
+This 2-minute window provides resilience against brief service interruptions while preventing very old messages from being sent unexpectedly.
+</Info>
+
+### Message Sending Process
+
+When sending a message, the scheduler makes this API call:
+
+```typescript
+const response = await fetch(`${process.env.WAHA_API_URL}/api/sendText`, {
+    method: 'POST',
+    headers: {
+        'accept': 'application/json',
+        'X-Api-Key': process.env.WAHA_API_KEY ?? '',
+        'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+        chatId: message.MessageCampaign?.group.groupId,
+        text: message.content,
+        linkPreview: true,
+        linkPreviewHighQuality: false,
+        session: session?.sessionName,
+    })
+});
+```
+
+## Deployment Options
+
+### Option 1: DigitalOcean VPS (Recommended)
+
+Deploying the scheduler on a dedicated VPS ensures 24/7 availability.
+
+<Steps>
+  <Step title="Create Droplet">
+    Sign up for DigitalOcean ([get $200 credit](https://m.do.co/c/ddd03661770c)) and create a droplet:
+    
+    - **OS**: Ubuntu 22.04 LTS
+    - **Plan**: Basic ($6/month or higher)
+    - **RAM**: Minimum 1GB
+    - **Authentication**: SSH keys (recommended) or password
+  </Step>
+
+  <Step title="Install Dependencies">
+    Connect to your server and install required software:
+    
+    ```bash
+    # Connect to server
+    ssh root@your-server-ip
+    
+    # Update system
+    apt update && apt upgrade -y
+    
+    # Install Node.js 18+
+    curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+    apt-get install -y nodejs
+    
+    # Install pnpm
+    npm install -g pnpm
+    
+    # Install PM2 for process management
+    npm install -g pm2
+    ```
+  </Step>
+
+  <Step title="Deploy Application">
+    Clone and configure your application:
+    
+    ```bash
+    # Clone repository
+    git clone https://github.com/yourusername/whatsapp-group-manager.git
+    cd whatsapp-group-manager
+    
+    # Install dependencies
+    pnpm install
+    
+    # Create production environment file
+    nano .env.production
+    ```
+    
+    Add your environment variables:
+    ```env
+    DATABASE_URL="mongodb+srv://user:pass@cluster.mongodb.net/db"
+    WAHA_API_URL="http://your-waha-server:3000"
+    WAHA_API_KEY="your-api-key"
+    ```
+  </Step>
+
+  <Step title="Generate Prisma Client">
+    ```bash
+    pnpm prisma:generate
+    ```
+  </Step>
+
+  <Step title="Start with PM2">
+    Launch the scheduler with PM2 for automatic restarts:
+    
+    ```bash
+    pm2 start src/scripts/messageScheduler.ts \
+      --interpreter ./node_modules/.bin/tsx \
+      --name whatsapp-scheduler \
+      --env production
+    
+    # Save PM2 configuration
+    pm2 save
+    
+    # Setup auto-start on server reboot
+    pm2 startup
+    ```
+  </Step>
+</Steps>
+
+### Option 2: Docker Container
+
+Run the scheduler in a Docker container:
+
+```dockerfile
+FROM node:18-alpine
+
+WORKDIR /app
+
+COPY package.json pnpm-lock.yaml ./
+RUN npm install -g pnpm && pnpm install
+
+COPY . .
+RUN pnpm prisma:generate
+
+CMD ["node", "--loader", "tsx", "src/scripts/messageScheduler.ts"]
+```
+
+Build and run:
+
+```bash
+# Build image
+docker build -t whatsapp-scheduler .
+
+# Run container
+docker run -d \
+  --name scheduler \
+  --env-file .env.production \
+  --restart unless-stopped \
+  whatsapp-scheduler
+```
+
+### Option 3: Serverless (Advanced)
+
+For serverless deployment, you'll need to modify the scheduler to run as a cron job rather than a continuous process.
+
+<Warning>
+Serverless options may have cold start delays. Ensure your platform supports frequent execution (every 30 seconds) without excessive costs.
+</Warning>
+
+## Monitoring the Scheduler
+
+### PM2 Commands
+
+Manage your scheduler with these PM2 commands:
+
+```bash
+# Check status
+pm2 status
+
+# View logs (real-time)
+pm2 logs whatsapp-scheduler
+
+# View logs (last 100 lines)
+pm2 logs whatsapp-scheduler --lines 100
+
+# Monitor CPU and memory
+pm2 monit
+
+# Restart scheduler
+pm2 restart whatsapp-scheduler
+
+# Stop scheduler
+pm2 stop whatsapp-scheduler
+
+# Delete from PM2
+pm2 delete whatsapp-scheduler
+```
+
+### Log Output
+
+The scheduler provides detailed logging:
+
+```log
+[2026-03-04T10:00:00.000Z] No pending messages to send
+[2026-03-04T10:00:30.000Z] Found 3 messages to send
+Sending message to group Project Team: Daily standup reminder
+Message ID: abc123, Scheduled At: 2026-03-04T10:00:00.000Z
+Successfully processed message abc123
+```
+
+### Health Monitoring
+
+Implement health checks to ensure the scheduler is running:
+
+<CodeGroup>
+```bash Bash
+# Check if process is running
+pm2 list | grep whatsapp-scheduler
+
+# Check recent logs for activity
+pm2 logs whatsapp-scheduler --lines 10 --nostream
+```
+
+```javascript Node.js Health Endpoint
+// Add to your main app
+app.get('/health/scheduler', async (req, res) => {
+  const recentMessages = await prisma.message.findMany({
+    where: {
+      sentAt: {
+        gte: new Date(Date.now() - 5 * 60 * 1000) // Last 5 minutes
+      }
+    },
+    take: 1
+  });
+  
+  res.json({
+    status: 'healthy',
+    lastProcessed: recentMessages[0]?.sentAt || null
+  });
+});
+```
+</CodeGroup>
+
+## Performance Considerations
+
+### Scaling
+
+For high-volume deployments:
+
+<CardGroup cols={2}>
+  <Card title="Increase Check Frequency" icon="gauge-high">
+    Modify the 30-second interval for faster processing:
+    ```typescript
+    setInterval(() => {
+      void checkAndSendScheduledMessages();
+    }, 15 * 1000); // Every 15 seconds
+    ```
+  </Card>
+  
+  <Card title="Parallel Processing" icon="layer-group">
+    Process multiple messages simultaneously using Promise.all:
+    ```typescript
+    await Promise.all(
+      messagesToSend.map(msg => sendMessage(msg))
+    );
+    ```
+  </Card>
+  
+  <Card title="Database Indexing" icon="database">
+    Ensure indexes on frequently queried fields:
+    - `scheduledAt`
+    - `isSent`
+    - `isDeleted`
+    - `isPicked`
+  </Card>
+  
+  <Card title="Message Batching" icon="boxes-stacked">
+    Group messages by session to optimize API calls.
+  </Card>
+</CardGroup>
+
+### Resource Usage
+
+Typical resource consumption:
+
+- **CPU**: < 5% (idle), up to 30% (active sending)
+- **RAM**: ~150-300 MB
+- **Network**: Minimal (depends on message volume)
+- **Database Connections**: 1 persistent connection
+
+## Error Handling
+
+### Automatic Recovery
+
+The scheduler includes built-in error handling:
+
+```typescript
+try {
+  // Send message
+} catch (error) {
+  console.error(`Error processing message ${message.id}:`, error);
+  
+  // Mark campaign as failed
+  await prisma.messageCampaign.update({
+    where: { id: message.MessageCampaign.id },
+    data: { status: CampaignStatus.FAILED }
+  });
+}
+```
+
+<Info>
+Failed messages don't stop the scheduler. It continues processing other messages in the queue.
+</Info>
+
+### Common Errors
+
+<AccordionGroup>
+  <Accordion title="WAHA API Connection Error">
+    **Error message:**
+    ```
+    Failed to send WhatsApp message: connect ECONNREFUSED
+    ```
+    
+    **Causes:**
+    - WAHA server is down
+    - Incorrect `WAHA_API_URL`
+    - Network/firewall blocking connection
+    
+    **Solutions:**
+    1. Verify WAHA server status
+    2. Check environment variables
+    3. Test connectivity: `curl http://waha-url/health`
+  </Accordion>
+
+  <Accordion title="Database Connection Lost">
+    **Error message:**
+    ```
+    PrismaClientKnownRequestError: Can't reach database server
+    ```
+    
+    **Causes:**
+    - MongoDB server down
+    - Network issues
+    - Connection string expired
+    
+    **Solutions:**
+    1. Check MongoDB status
+    2. Verify `DATABASE_URL` is correct
+    3. Restart scheduler to reconnect
+  </Accordion>
+
+  <Accordion title="WhatsApp Session Not Found">
+    **Error message:**
+    ```
+    Cannot read property 'sessionName' of null
+    ```
+    
+    **Causes:**
+    - Session was deleted
+    - Session disconnected
+    
+    **Solutions:**
+    1. Reconnect WhatsApp in dashboard
+    2. Update campaign with valid session
+    3. Delete orphaned campaigns
+  </Accordion>
+</AccordionGroup>
+
+### Graceful Shutdown
+
+The scheduler handles termination signals:
+
+```typescript
+process.on('SIGINT', () => {
+  console.log('Shutting down...');
+  clearInterval(interval);
+  void prisma.$disconnect().then(() => process.exit(0));
+});
+
+process.on('SIGTERM', () => {
+  console.log('Shutting down...');
+  clearInterval(interval);
+  void prisma.$disconnect().then(() => process.exit(0));
+});
+```
+
+## Deployment Checklist
+
+<Steps>
+  <Step title="Environment Variables">
+    Verify all required variables are set:
+    - `DATABASE_URL`
+    - `WAHA_API_URL`
+    - `WAHA_API_KEY`
+  </Step>
+
+  <Step title="Database Access">
+    Test connection to MongoDB from server:
+    ```bash
+    # Using mongosh
+    mongosh "mongodb+srv://..."
+    ```
+  </Step>
+
+  <Step title="WAHA Connectivity">
+    Verify WAHA server is accessible:
+    ```bash
+    curl -H "X-Api-Key: your-key" http://waha-url/api/sessions
+    ```
+  </Step>
+
+  <Step title="Prisma Client">
+    Generate Prisma client for production:
+    ```bash
+    pnpm prisma:generate
+    ```
+  </Step>
+
+  <Step title="Start Service">
+    Launch with PM2 and verify:
+    ```bash
+    pm2 start src/scripts/messageScheduler.ts --name scheduler
+    pm2 save
+    pm2 startup
+    ```
+  </Step>
+
+  <Step title="Monitor Logs">
+    Watch for successful startup:
+    ```bash
+    pm2 logs scheduler --lines 50
+    ```
+  </Step>
+
+  <Step title="Test Message">
+    Create a test campaign scheduled for 1-2 minutes in the future and verify delivery.
+  </Step>
+</Steps>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use Process Manager" icon="server">
+    Always run the scheduler with PM2 or similar for automatic restarts and monitoring.
+  </Card>
+  
+  <Card title="Monitor Regularly" icon="chart-line">
+    Check logs daily to catch issues early and ensure messages are being processed.
+  </Card>
+  
+  <Card title="Backup Strategy" icon="cloud-arrow-up">
+    Keep your server configuration and PM2 ecosystem file in version control.
+  </Card>
+  
+  <Card title="Alert on Failures" icon="bell">
+    Set up monitoring to alert you when the scheduler process stops.
+  </Card>
+  
+  <Card title="Separate from Web App" icon="diagram-project">
+    Run scheduler on a dedicated server or container separate from your web application.
+  </Card>
+  
+  <Card title="Test Thoroughly" icon="flask">
+    Before production, test with various campaign types and edge cases.
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Create Campaigns" icon="bullhorn" href="/guides/creating-campaigns">
+    Start scheduling messages with the scheduler running
+  </Card>
+  
+  <Card title="Admin Dashboard" icon="gauge" href="/guides/user-management">
+    Monitor campaign status and system health
+  </Card>
+</CardGroup>

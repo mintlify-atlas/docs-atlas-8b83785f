@@ -1,0 +1,404 @@
+---
+title: 'Message Campaign API'
+description: 'API endpoints for managing WhatsApp message campaigns'
+---
+
+The Message Campaign API allows you to create, retrieve, update, and delete scheduled WhatsApp message campaigns for groups and individuals.
+
+## createCampaign
+
+Create a new message campaign with scheduled messages.
+
+### Input Parameters
+
+<ParamField path="groupId" type="string" required>
+  The WhatsApp group ID or contact ID
+</ParamField>
+
+<ParamField path="groupName" type="string" required>
+  The WhatsApp group name or contact name
+</ParamField>
+
+<ParamField path="sessionId" type="string" required>
+  The WhatsApp session ID to use for sending messages
+</ParamField>
+
+<ParamField path="title" type="string">
+  Optional campaign title
+</ParamField>
+
+<ParamField path="targetAmount" type="string">
+  Optional contribution target amount
+</ParamField>
+
+<ParamField path="startDate" type="string" required>
+  Campaign start date in ISO format (e.g., "2024-01-01")
+</ParamField>
+
+<ParamField path="endDate" type="string" required>
+  Campaign end date in ISO format (e.g., "2024-12-31")
+</ParamField>
+
+<ParamField path="messageTime" type="string" required>
+  Time to send messages in HH:mm format (e.g., "09:30")
+</ParamField>
+
+<ParamField path="timeZone" type="string" default="America/Chicago">
+  Time zone for scheduling messages
+</ParamField>
+
+<ParamField path="messageTemplate" type="string" required>
+  Message template. Use `{days_left}` placeholder for dynamic days remaining. Separate multiple messages with asterisks (*) for recurring campaigns.
+</ParamField>
+
+<ParamField path="isFreeForm" type="boolean" default={false}>
+  If true, excludes campaign metadata from message content
+</ParamField>
+
+<ParamField path="isRecurring" type="boolean" required>
+  Whether the campaign sends messages on a recurring schedule
+</ParamField>
+
+<ParamField path="recurrence" type="enum" default="DAILY">
+  Recurrence pattern for the campaign
+  
+  **Options**: `DAILY`, `WEEKLY`, `SEMI_MONTHLY`, `MONTHLY`, `SEMI_ANNUALLY`, `ANNUALLY`
+</ParamField>
+
+<ParamField path="audienceType" type="enum" default="groups">
+  Type of audience for the campaign
+  
+  **Options**: `groups`, `individuals`
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates whether the campaign was created successfully
+</ResponseField>
+
+<ResponseField name="campaignId" type="string">
+  The unique identifier of the created campaign
+</ResponseField>
+
+### Example
+
+```typescript
+const result = await trpc.messageCampaign.createCampaign.mutate({
+  groupId: "120363123456789012@g.us",
+  groupName: "Community Group",
+  sessionId: "session_1234567890",
+  title: "Fundraising Campaign",
+  targetAmount: "$5000",
+  startDate: "2024-01-01",
+  endDate: "2024-01-31",
+  messageTime: "09:00",
+  timeZone: "America/Chicago",
+  messageTemplate: "Day {days_left}: Please contribute to our cause!",
+  isFreeForm: false,
+  isRecurring: true,
+  recurrence: "DAILY",
+  audienceType: "groups"
+});
+
+console.log(result);
+// { success: true, campaignId: "clx1234567890" }
+```
+
+---
+
+## getCampaigns
+
+Retrieve all active campaigns for the current user (campaigns with future scheduled messages).
+
+### Response
+
+<ResponseField name="campaigns" type="array">
+  Array of campaign objects
+  
+  <ResponseField name="id" type="string">
+    Campaign ID
+  </ResponseField>
+  
+  <ResponseField name="title" type="string">
+    Campaign title
+  </ResponseField>
+  
+  <ResponseField name="targetAmount" type="string">
+    Target contribution amount
+  </ResponseField>
+  
+  <ResponseField name="startDate" type="Date">
+    Campaign start date
+  </ResponseField>
+  
+  <ResponseField name="endDate" type="Date">
+    Campaign end date
+  </ResponseField>
+  
+  <ResponseField name="sendTimeUtc" type="Date">
+    Scheduled send time in UTC
+  </ResponseField>
+  
+  <ResponseField name="timeZone" type="string">
+    Campaign time zone
+  </ResponseField>
+  
+  <ResponseField name="template" type="string">
+    Message template
+  </ResponseField>
+  
+  <ResponseField name="status" type="string">
+    Campaign status
+  </ResponseField>
+  
+  <ResponseField name="createdAt" type="Date">
+    Campaign creation timestamp
+  </ResponseField>
+  
+  <ResponseField name="isRecurring" type="boolean">
+    Whether campaign is recurring
+  </ResponseField>
+  
+  <ResponseField name="recurrence" type="string">
+    Recurrence pattern
+  </ResponseField>
+  
+  <ResponseField name="group" type="object">
+    Associated WhatsApp group
+    
+    <ResponseField name="id" type="string">
+      Group ID
+    </ResponseField>
+    
+    <ResponseField name="groupName" type="string">
+      Group name
+    </ResponseField>
+    
+    <ResponseField name="groupId" type="string">
+      WhatsApp group ID
+    </ResponseField>
+  </ResponseField>
+  
+  <ResponseField name="messages" type="array">
+    Array of scheduled messages
+    
+    <ResponseField name="id" type="string">
+      Message ID
+    </ResponseField>
+    
+    <ResponseField name="content" type="string">
+      Message content
+    </ResponseField>
+    
+    <ResponseField name="scheduledAt" type="Date">
+      Scheduled send time
+    </ResponseField>
+    
+    <ResponseField name="sentAt" type="Date">
+      Actual send time
+    </ResponseField>
+    
+    <ResponseField name="isSent" type="boolean">
+      Whether message was sent
+    </ResponseField>
+    
+    <ResponseField name="isFailed" type="boolean">
+      Whether message failed to send
+    </ResponseField>
+  </ResponseField>
+</ResponseField>
+
+### Example
+
+```typescript
+const campaigns = await trpc.messageCampaign.getCampaigns.query();
+
+console.log(campaigns);
+// [
+//   {
+//     id: "clx1234567890",
+//     title: "Fundraising Campaign",
+//     targetAmount: "$5000",
+//     startDate: new Date("2024-01-01"),
+//     endDate: new Date("2024-01-31"),
+//     status: "SCHEDULED",
+//     group: {
+//       id: "clg9876543210",
+//       groupName: "Community Group",
+//       groupId: "120363123456789012@g.us"
+//     },
+//     messages: [...]
+//   }
+// ]
+```
+
+---
+
+## getCompletedCampaigns
+
+Retrieve all completed campaigns for the current user (all messages sent or past scheduled time).
+
+### Response
+
+Same structure as `getCampaigns`, but returns campaigns where all messages have been sent or are past their scheduled time.
+
+### Example
+
+```typescript
+const completedCampaigns = await trpc.messageCampaign.getCompletedCampaigns.query();
+
+console.log(completedCampaigns);
+// Returns array of completed campaign objects
+```
+
+---
+
+## updateCampaign
+
+Update an existing campaign. Only campaigns with no sent messages can be edited.
+
+### Input Parameters
+
+<ParamField path="campaignId" type="string" required>
+  The ID of the campaign to update
+</ParamField>
+
+<ParamField path="title" type="string">
+  Optional campaign title
+</ParamField>
+
+<ParamField path="targetAmount" type="string">
+  Optional contribution target amount
+</ParamField>
+
+<ParamField path="startDate" type="string" required>
+  Campaign start date in ISO format
+</ParamField>
+
+<ParamField path="endDate" type="string" required>
+  Campaign end date in ISO format
+</ParamField>
+
+<ParamField path="messageTime" type="string" required>
+  Time to send messages in HH:mm format
+</ParamField>
+
+<ParamField path="timeZone" type="string" default="America/Chicago">
+  Time zone for scheduling messages
+</ParamField>
+
+<ParamField path="messageTemplate" type="string" required>
+  Message template with optional placeholders
+</ParamField>
+
+<ParamField path="isRecurring" type="boolean" required>
+  Whether the campaign sends messages on a recurring schedule
+</ParamField>
+
+<ParamField path="isFreeForm" type="boolean" default={false}>
+  If true, excludes campaign metadata from message content
+</ParamField>
+
+<ParamField path="recurrence" type="enum" default="DAILY">
+  Recurrence pattern
+  
+  **Options**: `DAILY`, `WEEKLY`, `SEMI_MONTHLY`, `MONTHLY`, `SEMI_ANNUALLY`, `ANNUALLY`
+</ParamField>
+
+<ParamField path="audienceType" type="enum" default="groups">
+  Type of audience
+  
+  **Options**: `groups`, `individuals`
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates whether the campaign was updated successfully
+</ResponseField>
+
+<ResponseField name="campaignId" type="string">
+  The unique identifier of the updated campaign
+</ResponseField>
+
+### Example
+
+```typescript
+const result = await trpc.messageCampaign.updateCampaign.mutate({
+  campaignId: "clx1234567890",
+  title: "Updated Campaign Title",
+  targetAmount: "$7500",
+  startDate: "2024-01-01",
+  endDate: "2024-02-15",
+  messageTime: "10:00",
+  timeZone: "America/New_York",
+  messageTemplate: "Updated message: {days_left} days left!",
+  isRecurring: true,
+  isFreeForm: false,
+  recurrence: "WEEKLY"
+});
+
+console.log(result);
+// { success: true, campaignId: "clx1234567890" }
+```
+
+### Error Cases
+
+- **"Campaign not found or access denied"**: Campaign doesn't exist or user doesn't have permission
+- **"Cannot edit campaign with messages that have already been sent"**: At least one message has been sent
+- **"Invalid time format"**: messageTime doesn't match HH:mm format
+- **"End date must be after start date"**: Invalid date range
+
+---
+
+## deleteCampaign
+
+Soft delete a campaign and all its associated messages.
+
+### Input Parameters
+
+<ParamField path="campaignId" type="string" required>
+  The ID of the campaign to delete
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates whether the campaign was deleted successfully
+</ResponseField>
+
+### Example
+
+```typescript
+const result = await trpc.messageCampaign.deleteCampaign.mutate({
+  campaignId: "clx1234567890"
+});
+
+console.log(result);
+// { success: true }
+```
+
+---
+
+## Type Definitions
+
+```typescript
+type RecurrencePattern = 
+  | 'DAILY'          // Every 1 day
+  | 'WEEKLY'         // Every 7 days
+  | 'SEMI_MONTHLY'   // Every 15 days
+  | 'MONTHLY'        // Every 30 days
+  | 'SEMI_ANNUALLY'  // Every 182 days
+  | 'ANNUALLY';      // Every 365 days
+
+type AudienceType = 'groups' | 'individuals';
+
+type CampaignStatus = 
+  | 'DRAFT'
+  | 'SCHEDULED'
+  | 'IN_PROGRESS'
+  | 'COMPLETED'
+  | 'CANCELLED'
+  | 'FAILED';
+```

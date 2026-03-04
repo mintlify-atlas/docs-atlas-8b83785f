@@ -1,80 +1,282 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: 'Quick Start Guide'
+description: 'Get up and running with WhatsApp WAHA Dashboard in under 10 minutes'
+icon: 'rocket'
 ---
 
-## Get started in three steps
+## Overview
 
-Get your documentation site running locally and make your first customization.
-
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+This quick start guide will help you get WhatsApp WAHA Dashboard up and running in your local development environment. You'll set up your database, connect to WAHA, and create your first campaign.
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+This guide assumes you have basic familiarity with Node.js and command-line tools. For detailed installation instructions, see the [Installation Guide](/installation).
 </Note>
+
+## Prerequisites
+
+Before starting, ensure you have:
+
+<CardGroup cols={2}>
+  <Card title="Node.js 18+" icon="node-js">
+    Download from [nodejs.org](https://nodejs.org)
+  </Card>
+  <Card title="pnpm" icon="box">
+    Install with `npm install -g pnpm`
+  </Card>
+  <Card title="MongoDB" icon="database">
+    Local instance or MongoDB Atlas account
+  </Card>
+  <Card title="WAHA Server" icon="whatsapp">
+    WhatsApp HTTP API server running
+  </Card>
+</CardGroup>
+
+<Warning>
+You **must** have a running WAHA (WhatsApp HTTP API) server before you can use this dashboard. WAHA handles the WhatsApp connection and message delivery.
+</Warning>
+
+## Quick Setup
+
+<Steps>
+  <Step title="Clone and Install">
+    Clone the repository and install dependencies:
+
+    <CodeGroup>
+    ```bash npm
+    git clone https://github.com/jevil25/whatsapp-waha-dashboard.git
+    cd whatsapp-waha-dashboard
+    npm install
+    ```
+    ```bash yarn
+    git clone https://github.com/jevil25/whatsapp-waha-dashboard.git
+    cd whatsapp-waha-dashboard
+    yarn install
+    ```
+    ```bash pnpm
+    git clone https://github.com/jevil25/whatsapp-waha-dashboard.git
+    cd whatsapp-waha-dashboard
+    pnpm install
+    ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Configure Environment">
+    Create a `.env` file in the root directory with the following configuration:
+
+    ```env
+    # Database
+    DATABASE_URL="mongodb+srv://username:password@cluster.mongodb.net/whatsapp-manager"
+
+    # WhatsApp API
+    WAHA_API_URL="http://localhost:3000"
+    WAHA_API_KEY="your-waha-api-key"
+
+    # Better Auth
+    BETTER_AUTH_SECRET="your-secret-key-here"
+    BETTER_AUTH_URL="http://localhost:3000"
+
+    # Mailgun (for email notifications)
+    MAILGUN_API_KEY="your-mailgun-api-key"
+    MAILGUN_DOMAIN="your-mailgun-domain"
+    FROM_EMAIL="noreply@yourdomain.com"
+
+    # Admin Configuration
+    ADMIN_EMAIL="admin@yourdomain.com"
+    ADMIN_PHONE_NUMBER="+1234567890"
+    ```
+
+    <Accordion title="How to get these credentials">
+      - **DATABASE_URL**: Get from [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) or use local MongoDB
+      - **WAHA_API_KEY**: Set in your WAHA server configuration
+      - **BETTER_AUTH_SECRET**: Generate with `openssl rand -base64 32`
+      - **MAILGUN credentials**: Sign up at [mailgun.com](https://www.mailgun.com)
+    </Accordion>
+  </Step>
+
+  <Step title="Initialize Database">
+    Generate the Prisma client and push the schema to your database:
+
+    <CodeGroup>
+    ```bash npm
+    npm run prisma:generate
+    npm run db:push
+    ```
+    ```bash pnpm
+    pnpm prisma:generate
+    pnpm db:push
+    ```
+    </CodeGroup>
+
+    <Info>
+    This will create all necessary tables in your MongoDB database based on the Prisma schema.
+    </Info>
+  </Step>
+
+  <Step title="Start Development Server">
+    Launch the Next.js development server:
+
+    <CodeGroup>
+    ```bash npm
+    npm run dev
+    ```
+    ```bash pnpm
+    pnpm dev
+    ```
+    </CodeGroup>
+
+    The application will be available at [http://localhost:3000](http://localhost:3000)
+  </Step>
+
+  <Step title="Create Your Admin Account">
+    1. Open [http://localhost:3000/auth](http://localhost:3000/auth)
+    2. Click **Sign Up** and create an account
+    3. Use the email address you configured as `ADMIN_EMAIL`
+    4. Complete the registration form
+
+    <Note>
+    The first user with the admin email will automatically receive ADMIN privileges. All other users start as GUEST and require approval.
+    </Note>
+  </Step>
+
+  <Step title="Connect WhatsApp">
+    1. Log in to your dashboard
+    2. Navigate to the WhatsApp connection section
+    3. Click **Connect WhatsApp**
+    4. Scan the QR code with your WhatsApp mobile app:
+       - Open WhatsApp → **Settings** → **Linked Devices** → **Link a Device**
+    5. Wait for the connection to establish
+
+    <Tip>
+    Keep your phone connected to the internet during the QR code scan process.
+    </Tip>
+  </Step>
+</Steps>
+
+## Verify Your Setup
+
+After completing the setup, verify everything is working:
+
+<AccordionGroup>
+  <Accordion title="Check Database Connection">
+    Run Prisma Studio to view your database:
+    ```bash
+    pnpm db:studio
+    ```
+    You should see your user account in the database at [http://localhost:5555](http://localhost:5555)
+  </Accordion>
+
+  <Accordion title="Verify WhatsApp Connection">
+    In the dashboard, check that:
+    - Your session shows as **CONNECTED**
+    - Your WhatsApp groups are visible
+    - Session information displays correctly
+  </Accordion>
+
+  <Accordion title="Test Notifications">
+    If configured, you should receive:
+    - Admin notification when new users register
+    - Email confirmation for password changes
+  </Accordion>
+</AccordionGroup>
+
+## Create Your First Campaign
+
+Now that everything is set up, create your first message campaign:
+
+<Steps>
+  <Step title="Navigate to Campaign Creation">
+    From the dashboard, click **Create Campaign** or **Schedule Message**
+  </Step>
+
+  <Step title="Select Target Group">
+    Choose a WhatsApp group from your connected groups
+  </Step>
+
+  <Step title="Compose Message">
+    Write your message. You can use placeholders like `{days_left}` for dynamic content
+  </Step>
+
+  <Step title="Schedule Delivery">
+    Set the date and time for message delivery, including timezone
+  </Step>
+
+  <Step title="Submit Campaign">
+    Review and submit your campaign. It will automatically send at the scheduled time!
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Setup Message Scheduler"
+    icon="clock"
+    href="/guides/message-scheduler"
+  >
+    Deploy the background scheduler for automatic message delivery
+  </Card>
+  <Card
+    title="User Management"
+    icon="users"
+    href="/guides/user-management"
+  >
+    Learn how to manage user registrations and permissions
+  </Card>
+  <Card
+    title="Campaign Features"
+    icon="calendar-days"
+    href="/features/campaign-management"
+  >
+    Explore advanced campaign management features
+  </Card>
+  <Card
+    title="Deploy to Production"
+    icon="rocket"
+    href="/deployment/vercel"
+  >
+    Deploy your application to Vercel
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Port 3000 is already in use">
+    If port 3000 is occupied, you can change it:
+    ```bash
+    PORT=3001 pnpm dev
+    ```
+    Remember to update `BETTER_AUTH_URL` in your `.env` file.
+  </Accordion>
+
+  <Accordion title="Prisma Client errors">
+    If you see Prisma Client errors, regenerate the client:
+    ```bash
+    pnpm prisma:generate
+    ```
+  </Accordion>
+
+  <Accordion title="WhatsApp won't connect">
+    Common solutions:
+    - Verify WAHA server is running
+    - Check WAHA_API_URL and WAHA_API_KEY are correct
+    - Ensure your phone has internet connection
+    - Try restarting the WAHA server
+  </Accordion>
+
+  <Accordion title="Database connection failed">
+    - Verify your MongoDB instance is running
+    - Check DATABASE_URL format is correct
+    - For MongoDB Atlas, ensure your IP is whitelisted
+    - Test connection with `pnpm db:push`
+  </Accordion>
+</AccordionGroup>
+
+## Getting Help
+
+If you encounter issues:
+
+- Check the [GitHub Issues](https://github.com/jevil25/whatsapp-waha-dashboard/issues)
+- Review the [Installation Guide](/installation) for detailed setup
+- Join our community discussions
+- Contact the maintainer [@jevil25](https://github.com/jevil25)

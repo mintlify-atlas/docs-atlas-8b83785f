@@ -1,0 +1,411 @@
+---
+title: 'Message Scheduler Setup'
+description: 'Deploy the message scheduler service on a VPS with PM2 for continuous operation'
+---
+
+# Message Scheduler Setup
+
+The message scheduler is a background service that automatically sends scheduled WhatsApp messages. It needs to run continuously on a server, separate from the Vercel-hosted frontend.
+
+<Warning>
+  **Important**: The scheduler must run 24/7 on a VPS. Vercel's serverless functions are not suitable for long-running background tasks. We recommend DigitalOcean, AWS EC2, or similar VPS providers.
+</Warning>
+
+## How the Scheduler Works
+
+The scheduler service:
+- Checks for pending messages **every 30 seconds**
+- Automatically sends messages when scheduled time arrives
+- Updates campaign status and tracking in real-time
+- Handles errors with retry logic and detailed logging
+- Runs independently from the web application
+
+## DigitalOcean VPS Setup
+
+### 1. Create a Droplet
+
+<Card title="Get $200 in Credits" icon="gift" href="https://m.do.co/c/ddd03661770c">
+  Use this referral link to get $200 in DigitalOcean credits!
+</Card>
+
+**Recommended specifications:**
+- **OS**: Ubuntu 22.04 LTS (or latest LTS)
+- **Plan**: Basic Droplet with 1GB RAM minimum
+- **CPU**: 1 vCPU (sufficient for scheduler)
+- **Storage**: 25GB SSD
+- **Region**: Choose closest to your WAHA server
+
+**Authentication:**
+- For beginners: Use password authentication
+- Recommended: Use SSH keys for better security
+
+### 2. Initial Server Setup
+
+Connect to your server and perform initial setup:
+
+<CodeGroup>
+```bash SSH Connection
+# Connect to your server
+ssh root@your-server-ip
+# Enter your password or use your SSH key
+```
+
+```bash System Update
+# Update package lists and upgrade system
+apt update && apt upgrade -y
+```
+
+```bash Install Node.js
+# Install Node.js 18.x (or later)
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+apt-get install -y nodejs
+
+# Verify installation
+node --version
+npm --version
+```
+
+```bash Install pnpm
+# Install pnpm package manager
+npm install -g pnpm
+
+# Verify installation
+pnpm --version
+```
+
+```bash Install PM2
+# Install PM2 for process management
+npm install -g pm2
+
+# Verify installation
+pm2 --version
+```
+</CodeGroup>
+
+### 3. Deploy the Scheduler
+
+<CodeGroup>
+```bash Clone Repository
+# Clone your repository
+git clone https://github.com/yourusername/whatsapp-group-manager.git
+cd whatsapp-group-manager
+```
+
+```bash Install Dependencies
+# Install project dependencies
+pnpm install
+```
+
+```bash Environment Configuration
+# Create production environment file
+nano .env.production
+
+# Add the following variables:
+DATABASE_URL="mongodb+srv://username:password@cluster.mongodb.net/whatsapp-manager"
+WAHA_API_KEY="your-waha-api-key"
+WAHA_API_URL="http://your-waha-server:3000"
+
+# Save and exit (Ctrl+X, then Y, then Enter)
+```
+
+```bash Generate Prisma Client
+# Generate Prisma client for database access
+pnpm prisma:generate
+```
+</CodeGroup>
+
+### 4. Start Scheduler with PM2
+
+PM2 ensures the scheduler runs continuously and restarts automatically if it crashes.
+
+<CodeGroup>
+```bash Start with PM2
+# Start the scheduler service
+pm2 start src/scripts/messageScheduler.ts \
+  --interpreter ./node_modules/.bin/tsx \
+  --name whatsapp-scheduler \
+  --env production
+```
+
+```bash Save PM2 Configuration
+# Save PM2 process list
+pm2 save
+
+# Configure PM2 to start on system boot
+pm2 startup
+# Follow the instructions output by this command
+```
+</CodeGroup>
+
+<Warning>
+  **PM2 Startup**: After running `pm2 startup`, it will output a command that you need to copy and execute. This ensures PM2 starts automatically when the server reboots.
+</Warning>
+
+## PM2 Management Commands
+
+### Monitor the Scheduler
+
+<CodeGroup>
+```bash Check Status
+# View all PM2 processes
+pm2 status
+
+# View detailed info for scheduler
+pm2 show whatsapp-scheduler
+```
+
+```bash View Logs
+# View real-time logs
+pm2 logs whatsapp-scheduler
+
+# View last 100 lines
+pm2 logs whatsapp-scheduler --lines 100
+
+# View only error logs
+pm2 logs whatsapp-scheduler --err
+```
+
+```bash Monitor Resources
+# Real-time monitoring dashboard
+pm2 monit
+
+# Press Ctrl+C to exit
+```
+</CodeGroup>
+
+### Control the Scheduler
+
+<CodeGroup>
+```bash Restart
+# Restart the scheduler
+pm2 restart whatsapp-scheduler
+
+# Restart with zero-downtime
+pm2 reload whatsapp-scheduler
+```
+
+```bash Stop and Start
+# Stop the scheduler
+pm2 stop whatsapp-scheduler
+
+# Start the scheduler
+pm2 start whatsapp-scheduler
+```
+
+```bash Delete Process
+# Remove from PM2 (stops and deletes)
+pm2 delete whatsapp-scheduler
+```
+</CodeGroup>
+
+## PM2 Configuration File
+
+For advanced configuration, create an `ecosystem.config.js` file:
+
+<CodeGroup>
+```javascript ecosystem.config.js
+module.exports = {
+  apps: [{
+    name: 'whatsapp-scheduler',
+    script: 'src/scripts/messageScheduler.ts',
+    interpreter: './node_modules/.bin/tsx',
+    instances: 1,
+    exec_mode: 'fork',
+    env_production: {
+      NODE_ENV: 'production',
+      DATABASE_URL: process.env.DATABASE_URL,
+      WAHA_API_KEY: process.env.WAHA_API_KEY,
+      WAHA_API_URL: process.env.WAHA_API_URL,
+    },
+    error_file: './logs/scheduler-error.log',
+    out_file: './logs/scheduler-out.log',
+    log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+    max_memory_restart: '500M',
+    autorestart: true,
+    watch: false,
+    max_restarts: 10,
+    min_uptime: '10s',
+  }]
+};
+```
+
+```bash Start with Config
+# Start using ecosystem file
+pm2 start ecosystem.config.js --env production
+
+# Save configuration
+pm2 save
+```
+</CodeGroup>
+
+## Updating the Scheduler
+
+When you need to deploy updates:
+
+<CodeGroup>
+```bash Pull Updates
+# Navigate to project directory
+cd whatsapp-group-manager
+
+# Pull latest changes
+git pull origin main
+
+# Install any new dependencies
+pnpm install
+
+# Regenerate Prisma client if schema changed
+pnpm prisma:generate
+
+# Restart the scheduler
+pm2 restart whatsapp-scheduler
+```
+
+```bash Zero-Downtime Update
+# For zero-downtime updates
+pm2 reload whatsapp-scheduler
+```
+</CodeGroup>
+
+## Troubleshooting
+
+### Scheduler Not Starting
+
+**Check logs:**
+```bash
+pm2 logs whatsapp-scheduler --err --lines 50
+```
+
+**Common issues:**
+- Missing environment variables
+- Database connection failure
+- Invalid Prisma client (run `pnpm prisma:generate`)
+- Node.js version mismatch
+
+### Database Connection Issues
+
+```bash
+# Test database connection
+pnpm prisma db push
+
+# If successful, restart scheduler
+pm2 restart whatsapp-scheduler
+```
+
+### High Memory Usage
+
+```bash
+# Check current memory usage
+pm2 monit
+
+# Set memory limit in ecosystem.config.js
+max_memory_restart: '500M'
+```
+
+### Scheduler Stopped After Reboot
+
+```bash
+# Verify PM2 startup is configured
+pm2 startup
+
+# Save current process list
+pm2 save
+
+# Check if PM2 is running
+systemctl status pm2-root
+```
+
+## Alternative VPS Providers
+
+### AWS EC2
+
+<CodeGroup>
+```bash EC2 Setup
+# Similar process on Amazon Linux 2
+sudo yum update -y
+sudo yum install -y nodejs npm
+npm install -g pnpm pm2
+
+# Follow same deployment steps
+```
+</CodeGroup>
+
+### Google Cloud Platform
+
+<CodeGroup>
+```bash GCP Compute Engine
+# On Debian/Ubuntu image
+sudo apt update && sudo apt upgrade -y
+# Follow DigitalOcean steps above
+```
+</CodeGroup>
+
+### Linode
+
+<CodeGroup>
+```bash Linode Setup
+# On Ubuntu 22.04 image
+# Follow DigitalOcean steps above
+```
+</CodeGroup>
+
+## Security Best Practices
+
+1. **Firewall Configuration**
+   ```bash
+   # Enable UFW firewall
+   ufw allow OpenSSH
+   ufw enable
+   ```
+
+2. **Keep System Updated**
+   ```bash
+   # Regular updates
+   apt update && apt upgrade -y
+   ```
+
+3. **Use SSH Keys**
+   - Disable password authentication
+   - Use strong SSH key passphrases
+
+4. **Environment Variables**
+   - Never commit `.env.production` to git
+   - Use strong, unique credentials
+
+5. **Monitor Logs**
+   ```bash
+   # Regularly check for errors
+   pm2 logs whatsapp-scheduler --lines 100
+   ```
+
+## Performance Optimization
+
+### Log Rotation
+
+```bash
+# Install PM2 log rotate
+pm2 install pm2-logrotate
+
+# Configure retention (keep 7 days)
+pm2 set pm2-logrotate:retain 7
+
+# Configure max file size (10MB)
+pm2 set pm2-logrotate:max_size 10M
+```
+
+### Resource Monitoring
+
+```bash
+# Enable PM2 Plus for advanced monitoring (optional)
+pm2 link [secret-key] [public-key]
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Environment Variables" icon="gear" href="/deployment/environment-variables">
+    Review all configuration options
+  </Card>
+  <Card title="Vercel Deployment" icon="cloud" href="/deployment/vercel">
+    Deploy the web application
+  </Card>
+</CardGroup>

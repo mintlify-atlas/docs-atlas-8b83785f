@@ -1,0 +1,479 @@
+---
+title: 'Environment Variables'
+description: 'Complete reference of all environment variables required for WhatsApp WAHA Dashboard'
+---
+
+# Environment Variables
+
+Complete reference guide for all environment variables used in the WhatsApp WAHA Dashboard.
+
+<Warning>
+  Never commit `.env` files to version control. Use `.env.example` as a template and keep your actual credentials secure.
+</Warning>
+
+## Quick Start
+
+Copy the example environment file:
+
+```bash
+cp .env.example .env
+```
+
+Then fill in your actual values.
+
+## Required Variables
+
+### Database Configuration
+
+<ParamField path="DATABASE_URL" type="string" required>
+  MongoDB connection string for storing application data.
+
+  **Format**: `mongodb+srv://username:password@cluster.mongodb.net/database-name`
+
+  **Example**:
+  ```
+  DATABASE_URL="mongodb+srv://admin:SecurePass123@cluster0.abc123.mongodb.net/whatsapp-manager"
+  ```
+
+  **Notes**:
+  - Use MongoDB Atlas for hosted database
+  - Ensure network access is configured (0.0.0.0/0 for Vercel)
+  - Database is automatically created if it doesn't exist
+  - Prisma will manage schema migrations
+</ParamField>
+
+### WhatsApp API Configuration
+
+<ParamField path="WAHA_API_URL" type="string" required>
+  Base URL for your WAHA (WhatsApp HTTP API) server.
+
+  **Example**:
+  ```
+  WAHA_API_URL="http://localhost:3000"
+  WAHA_API_URL="http://your-server-ip:3000"
+  WAHA_API_URL="https://waha.yourdomain.com"
+  ```
+
+  **Notes**:
+  - Must be accessible from both your web app and scheduler
+  - Include protocol (http/https) but no trailing slash
+  - Default WAHA port is 3000
+</ParamField>
+
+<ParamField path="WAHA_API_KEY" type="string" required>
+  API key for authenticating with your WAHA server.
+
+  **Example**:
+  ```
+  WAHA_API_KEY="your-secure-waha-api-key"
+  ```
+
+  **Notes**:
+  - Set this in your WAHA server configuration
+  - Use a strong, unique key
+  - Same key must be used across all services
+</ParamField>
+
+### Authentication Configuration
+
+<ParamField path="BETTER_AUTH_SECRET" type="string" required>
+  Secret key used by Better Auth for session encryption and security.
+
+  **Example**:
+  ```
+  BETTER_AUTH_SECRET="your-super-secret-key-min-32-characters-long"
+  ```
+
+  **Requirements**:
+  - Minimum 32 characters
+  - Use random, cryptographically secure string
+  - Different for development and production
+
+  **Generate a secure secret**:
+  ```bash
+  # Using OpenSSL
+  openssl rand -base64 32
+
+  # Using Node.js
+  node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+  ```
+</ParamField>
+
+<ParamField path="BETTER_AUTH_URL" type="string" required>
+  Base URL of your application for authentication callbacks.
+
+  **Development**:
+  ```
+  BETTER_AUTH_URL="http://localhost:3000"
+  ```
+
+  **Production**:
+  ```
+  BETTER_AUTH_URL="https://your-app.vercel.app"
+  BETTER_AUTH_URL="https://yourdomain.com"
+  ```
+
+  **Notes**:
+  - Must match your actual domain
+  - Include protocol (http/https)
+  - No trailing slash
+  - Update after deploying to production
+</ParamField>
+
+### Email Configuration (Mailgun)
+
+<ParamField path="MAILGUN_API_KEY" type="string" required>
+  API key from your Mailgun account for sending emails.
+
+  **Example**:
+  ```
+  MAILGUN_API_KEY="key-1234567890abcdef1234567890abcdef"
+  ```
+
+  **Where to find**:
+  1. Log in to [Mailgun](https://www.mailgun.com/)
+  2. Go to Settings → API Keys
+  3. Copy your Private API key
+</ParamField>
+
+<ParamField path="MAILGUN_DOMAIN" type="string" required>
+  Your verified Mailgun domain for sending emails.
+
+  **Example**:
+  ```
+  MAILGUN_DOMAIN="mg.yourdomain.com"
+  MAILGUN_DOMAIN="sandboxXXXX.mailgun.org"  # For testing
+  ```
+
+  **Setup**:
+  1. Add and verify your domain in Mailgun
+  2. Configure DNS records (MX, TXT, CNAME)
+  3. Wait for verification (usually 24-48 hours)
+</ParamField>
+
+<ParamField path="FROM_EMAIL" type="string" required>
+  Email address to use as sender for system emails.
+
+  **Example**:
+  ```
+  FROM_EMAIL="noreply@yourdomain.com"
+  FROM_EMAIL="support@yourdomain.com"
+  ```
+
+  **Requirements**:
+  - Domain must match `MAILGUN_DOMAIN`
+  - Use a professional, recognizable address
+  - Avoid generic terms like "test" or "admin"
+</ParamField>
+
+### Admin Configuration
+
+<ParamField path="ADMIN_EMAIL" type="string" required>
+  Email address for receiving admin notifications.
+
+  **Example**:
+  ```
+  ADMIN_EMAIL="admin@yourdomain.com"
+  ```
+
+  **Used for**:
+  - New user registration notifications
+  - System alerts and errors
+  - Password reset notifications
+  - Fallback when WhatsApp notifications fail
+</ParamField>
+
+<ParamField path="ADMIN_PHONE_NUMBER" type="string" optional>
+  WhatsApp phone number for receiving admin notifications.
+
+  **Example**:
+  ```
+  ADMIN_PHONE_NUMBER="+1234567890"
+  ADMIN_PHONE_NUMBER="+919876543210"
+  ```
+
+  **Format**:
+  - Include country code with + prefix
+  - No spaces or special characters
+  - Must be registered WhatsApp number
+
+  **Used for**:
+  - Real-time new user registration alerts
+  - Critical system notifications
+  - If not set, only email notifications are sent
+</ParamField>
+
+## Optional Variables
+
+### UI Configuration
+
+<ParamField path="NEXT_PUBLIC_SHOW_FOOTER" type="string" optional default="true">
+  Control visibility of the application footer.
+
+  **Example**:
+  ```
+  NEXT_PUBLIC_SHOW_FOOTER="false"  # Hide footer
+  NEXT_PUBLIC_SHOW_FOOTER="true"   # Show footer (default)
+  ```
+
+  **Notes**:
+  - Must start with `NEXT_PUBLIC_` to be available in browser
+  - Defaults to showing footer if not set
+  - Any value other than "false" shows the footer
+</ParamField>
+
+## Environment File Examples
+
+### Development (.env)
+
+<CodeGroup>
+```env .env (Development)
+# Database
+DATABASE_URL="mongodb+srv://dev:password@dev-cluster.mongodb.net/whatsapp-dev"
+
+# WhatsApp API (local WAHA instance)
+WAHA_API_URL="http://localhost:3000"
+WAHA_API_KEY="dev-api-key-123"
+
+# Better Auth
+BETTER_AUTH_SECRET="dev-secret-min-32-chars-change-in-prod"
+BETTER_AUTH_URL="http://localhost:3000"
+
+# Mailgun (use sandbox for testing)
+MAILGUN_API_KEY="key-1234567890abcdef"
+MAILGUN_DOMAIN="sandbox12345.mailgun.org"
+FROM_EMAIL="noreply@sandbox12345.mailgun.org"
+
+# Admin Configuration
+ADMIN_EMAIL="dev@localhost.com"
+ADMIN_PHONE_NUMBER="+1234567890"
+
+# UI Configuration
+NEXT_PUBLIC_SHOW_FOOTER="true"
+```
+</CodeGroup>
+
+### Production (Vercel)
+
+<CodeGroup>
+```env Vercel Environment Variables
+# Database (MongoDB Atlas)
+DATABASE_URL="mongodb+srv://prod:SecurePass123@prod-cluster.mongodb.net/whatsapp-prod"
+
+# WhatsApp API (production WAHA server)
+WAHA_API_URL="https://waha.yourdomain.com"
+WAHA_API_KEY="prod-secure-api-key-xyz789"
+
+# Better Auth (CRITICAL: Use strong secret)
+BETTER_AUTH_SECRET="production-secret-generated-with-openssl-rand-base64-32"
+BETTER_AUTH_URL="https://your-app.vercel.app"
+
+# Mailgun (verified domain)
+MAILGUN_API_KEY="key-prod1234567890abcdef"
+MAILGUN_DOMAIN="mg.yourdomain.com"
+FROM_EMAIL="noreply@yourdomain.com"
+
+# Admin Configuration
+ADMIN_EMAIL="admin@yourdomain.com"
+ADMIN_PHONE_NUMBER="+1234567890"
+
+# UI Configuration
+NEXT_PUBLIC_SHOW_FOOTER="true"
+```
+</CodeGroup>
+
+### Scheduler (.env.production on VPS)
+
+<CodeGroup>
+```env .env.production (VPS Scheduler)
+# Only scheduler needs these three variables
+DATABASE_URL="mongodb+srv://prod:SecurePass123@prod-cluster.mongodb.net/whatsapp-prod"
+WAHA_API_KEY="prod-secure-api-key-xyz789"
+WAHA_API_URL="https://waha.yourdomain.com"
+
+# Note: Scheduler doesn't need auth or email variables
+```
+</CodeGroup>
+
+## Environment Variables by Service
+
+### Web Application (Vercel)
+
+Required for the Next.js web app:
+
+| Variable | Purpose |
+|----------|--------|
+| `DATABASE_URL` | Database connection |
+| `WAHA_API_URL` | WhatsApp API access |
+| `WAHA_API_KEY` | WhatsApp API authentication |
+| `BETTER_AUTH_SECRET` | Session encryption |
+| `BETTER_AUTH_URL` | Auth callbacks |
+| `MAILGUN_API_KEY` | Email sending |
+| `MAILGUN_DOMAIN` | Email domain |
+| `FROM_EMAIL` | Sender address |
+| `ADMIN_EMAIL` | Admin notifications |
+| `ADMIN_PHONE_NUMBER` | WhatsApp notifications (optional) |
+| `NEXT_PUBLIC_SHOW_FOOTER` | UI configuration (optional) |
+
+### Message Scheduler (VPS)
+
+Required for the background scheduler:
+
+| Variable | Purpose |
+|----------|--------|
+| `DATABASE_URL` | Database connection |
+| `WAHA_API_URL` | WhatsApp API access |
+| `WAHA_API_KEY` | WhatsApp API authentication |
+
+<Info>
+  The scheduler only needs database and WAHA access. It doesn't need auth or email configuration.
+</Info>
+
+## Security Best Practices
+
+### Secret Generation
+
+<CodeGroup>
+```bash OpenSSL
+# Generate secure random secret
+openssl rand -base64 32
+```
+
+```bash Node.js
+# Generate using Node.js crypto
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
+
+```bash Python
+# Generate using Python
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+</CodeGroup>
+
+### Environment File Security
+
+1. **Never commit secrets**
+   ```bash
+   # Add to .gitignore
+   echo ".env" >> .gitignore
+   echo ".env.local" >> .gitignore
+   echo ".env.production" >> .gitignore
+   ```
+
+2. **Use different secrets per environment**
+   - Development and production must have different secrets
+   - Never reuse API keys across environments
+
+3. **Restrict file permissions**
+   ```bash
+   # On VPS, restrict .env file access
+   chmod 600 .env.production
+   ```
+
+4. **Rotate secrets regularly**
+   - Update `BETTER_AUTH_SECRET` quarterly
+   - Rotate API keys if compromised
+   - Update admin credentials periodically
+
+### MongoDB Security
+
+1. **Network Access**
+   - For Vercel: Allow `0.0.0.0/0` (Vercel uses dynamic IPs)
+   - For VPS: Whitelist specific VPS IP address
+
+2. **Strong Passwords**
+   - Use generated passwords (20+ characters)
+   - Include uppercase, lowercase, numbers, special chars
+   - Never use common passwords
+
+3. **Database User Permissions**
+   - Create separate users for dev/prod
+   - Grant minimum required permissions
+   - Use read-only users for analytics
+
+## Troubleshooting
+
+### Common Issues
+
+**"BETTER_AUTH_SECRET must be set"**
+```bash
+# Ensure variable is set and at least 32 characters
+echo $BETTER_AUTH_SECRET | wc -c
+# Should output 33 or more (includes newline)
+```
+
+**"Failed to connect to MongoDB"**
+```bash
+# Check connection string format
+# Ensure username/password are URL-encoded
+# Verify network access in MongoDB Atlas
+```
+
+**"Mailgun authentication failed"**
+```bash
+# Verify API key is correct (starts with 'key-')
+# Check domain is verified in Mailgun
+# Ensure FROM_EMAIL domain matches MAILGUN_DOMAIN
+```
+
+**"WAHA API connection refused"**
+```bash
+# Verify WAHA server is running
+curl http://your-waha-server:3000/api/server/status
+
+# Check WAHA_API_URL format (no trailing slash)
+# Verify WAHA_API_KEY matches server configuration
+```
+
+### Validation
+
+Validate your environment configuration:
+
+<CodeGroup>
+```bash Check Required Variables
+# On Unix/Linux/Mac
+for var in DATABASE_URL WAHA_API_URL WAHA_API_KEY BETTER_AUTH_SECRET BETTER_AUTH_URL MAILGUN_API_KEY MAILGUN_DOMAIN FROM_EMAIL ADMIN_EMAIL; do
+  if [ -z "${!var}" ]; then
+    echo "❌ $var is not set"
+  else
+    echo "✅ $var is set"
+  fi
+done
+```
+
+```javascript Node.js Validation
+// Create validate-env.js
+const required = [
+  'DATABASE_URL',
+  'WAHA_API_URL',
+  'WAHA_API_KEY',
+  'BETTER_AUTH_SECRET',
+  'BETTER_AUTH_URL',
+  'MAILGUN_API_KEY',
+  'MAILGUN_DOMAIN',
+  'FROM_EMAIL',
+  'ADMIN_EMAIL'
+];
+
+const missing = required.filter(key => !process.env[key]);
+
+if (missing.length > 0) {
+  console.error('❌ Missing required environment variables:');
+  missing.forEach(key => console.error(`  - ${key}`));
+  process.exit(1);
+} else {
+  console.log('✅ All required environment variables are set');
+}
+```
+</CodeGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Deploy to Vercel" icon="cloud" href="/deployment/vercel">
+    Deploy the web application
+  </Card>
+  <Card title="Scheduler Setup" icon="clock" href="/deployment/scheduler-setup">
+    Set up the background scheduler
+  </Card>
+</CardGroup>

@@ -1,0 +1,204 @@
+---
+title: 'Setting Up WhatsApp Connection'
+description: 'Learn how to connect your WhatsApp account to WAHA Dashboard and start managing your groups'
+icon: 'whatsapp'
+---
+
+## Overview
+
+The WhatsApp WAHA Dashboard connects to your WhatsApp account through the WAHA (WhatsApp HTTP API) server. This guide will walk you through the entire setup process, from configuring WAHA to scanning the QR code and verifying your connection.
+
+## Prerequisites
+
+Before you begin, ensure you have:
+
+- A WhatsApp account on your mobile device
+- Access to the WAHA server (local or hosted)
+- WAHA API credentials (API URL and API Key)
+- Administrator access to configure environment variables
+
+## Setting Up WAHA Server
+
+### Environment Configuration
+
+First, configure your WAHA connection in the `.env` file:
+
+```env
+# WhatsApp API Configuration
+WAHA_API_URL="http://localhost:3000"
+WAHA_API_KEY="your-waha-api-key"
+```
+
+<Note>
+If you're using a hosted WAHA instance, replace `localhost:3000` with your WAHA server URL.
+</Note>
+
+### WAHA Server Options
+
+You have several options for running WAHA:
+
+1. **Local Docker Installation** - Run WAHA on your local machine
+2. **Cloud Hosted** - Deploy WAHA to a VPS or cloud provider
+3. **Managed Service** - Use a managed WAHA hosting service
+
+<Tip>
+For production use, we recommend hosting WAHA on a reliable server to ensure 24/7 availability for message scheduling.
+</Tip>
+
+## Connecting Your WhatsApp Account
+
+<Steps>
+  <Step title="Navigate to Dashboard">
+    Log in to your WAHA Dashboard account and navigate to the main dashboard page.
+  </Step>
+
+  <Step title="Initiate Connection">
+    Look for the "Connect WhatsApp" button or WhatsApp session section. Click to start the connection process.
+  </Step>
+
+  <Step title="Generate QR Code">
+    The system will communicate with your WAHA server to generate a unique QR code for authentication.
+  </Step>
+
+  <Step title="Scan QR Code">
+    Using your WhatsApp mobile app:
+    
+    1. Open WhatsApp on your phone
+    2. Tap **Settings** (or **Menu** on Android)
+    3. Select **Linked Devices**
+    4. Tap **Link a Device**
+    5. Point your camera at the QR code on screen
+  </Step>
+
+  <Step title="Verify Connection">
+    Once scanned successfully, your WhatsApp session will appear as "CONNECTED" in the dashboard.
+  </Step>
+</Steps>
+
+## Understanding WhatsApp Sessions
+
+### Session Status
+
+Your WhatsApp session can have different statuses:
+
+- **CONNECTED** - Active and ready to send messages
+- **DISCONNECTED** - Session is not active
+- **FAILED** - Connection error occurred
+
+### Session Management
+
+The dashboard provides real-time session monitoring with:
+
+- Auto-refresh capabilities to check connection status
+- Manual restart options when issues occur
+- Session metadata including creation date and last update
+
+## Viewing Connected Groups
+
+Once connected, the system automatically syncs your WhatsApp groups:
+
+<Steps>
+  <Step title="Access Groups View">
+    Navigate to the WhatsApp Groups section in the dashboard.
+  </Step>
+
+  <Step title="Review Group List">
+    You'll see all your WhatsApp groups with:
+    - Group names
+    - Group IDs
+    - Associated campaigns
+    - Search and pagination capabilities
+  </Step>
+
+  <Step title="Select Target Groups">
+    Use the search functionality to find specific groups when creating campaigns.
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="QR Code Not Displaying">
+    **Possible causes:**
+    - WAHA server is not running
+    - Incorrect `WAHA_API_URL` in environment variables
+    - Network connectivity issues
+
+    **Solutions:**
+    1. Verify WAHA server is running: `curl http://your-waha-url/health`
+    2. Check environment variables in `.env` file
+    3. Ensure firewall allows connection to WAHA server
+    4. Review application logs for detailed error messages
+  </Accordion>
+
+  <Accordion title="Connection Drops Frequently">
+    **Possible causes:**
+    - Unstable internet connection
+    - WAHA server restarts
+    - WhatsApp Web session limits
+
+    **Solutions:**
+    1. Ensure WAHA server has stable internet connection
+    2. Use process manager (PM2) to keep WAHA running
+    3. Limit number of linked devices on your WhatsApp account
+    4. Use the manual restart feature in the dashboard
+  </Accordion>
+
+  <Accordion title="Groups Not Showing Up">
+    **Possible causes:**
+    - Session not fully synchronized
+    - API permission issues
+    - Groups created after connection
+
+    **Solutions:**
+    1. Refresh the session in the dashboard
+    2. Disconnect and reconnect WhatsApp
+    3. Verify WAHA API key has proper permissions
+    4. Wait a few moments for sync to complete
+  </Accordion>
+
+  <Accordion title="Invalid API Key Error">
+    **Possible causes:**
+    - Incorrect `WAHA_API_KEY` in environment variables
+    - API key expired or revoked
+
+    **Solutions:**
+    1. Verify the API key in your `.env` file matches your WAHA server configuration
+    2. Generate a new API key from your WAHA server
+    3. Restart the application after updating environment variables
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Keep WAHA Running" icon="server">
+    Use a process manager like PM2 to ensure your WAHA server stays online 24/7.
+  </Card>
+  
+  <Card title="Monitor Connection" icon="chart-line">
+    Regularly check your session status in the admin dashboard to catch issues early.
+  </Card>
+  
+  <Card title="Secure Your API Key" icon="lock">
+    Never commit your WAHA_API_KEY to version control. Use environment variables.
+  </Card>
+  
+  <Card title="Plan for Restarts" icon="rotate">
+    Sessions may need occasional restarts. Use the dashboard's restart feature when needed.
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+Now that your WhatsApp is connected, you can:
+
+<CardGroup cols={2}>
+  <Card title="Create Campaigns" icon="bullhorn" href="/guides/creating-campaigns">
+    Learn how to create and schedule message campaigns
+  </Card>
+  
+  <Card title="Manage Users" icon="users" href="/guides/user-management">
+    Set up user access and permissions
+  </Card>
+</CardGroup>

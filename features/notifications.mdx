@@ -1,0 +1,567 @@
+---
+title: 'Notifications'
+description: 'Multi-channel notification system with WhatsApp and email delivery'
+icon: 'bell'
+---
+
+## Overview
+
+WAHA Dashboard implements a robust multi-channel notification system using WhatsApp (primary) and email (fallback) to ensure administrators are always informed of critical events. The system is powered by Mailgun for email delivery and the WAHA API for WhatsApp messaging.
+
+## Notification Channels
+
+<CardGroup cols={2}>
+  <Card title="WhatsApp" icon="whatsapp">
+    Primary notification channel for real-time alerts
+    - Instant delivery
+    - Rich formatting with emojis
+    - Direct links to admin dashboard
+  </Card>
+  <Card title="Email" icon="envelope">
+    Fallback channel when WhatsApp fails
+    - HTML-styled templates
+    - Professional branding
+    - Reliable delivery via Mailgun
+  </Card>
+</CardGroup>
+
+## Email Configuration
+
+Email notifications use Mailgun as the delivery provider:
+
+```typescript src/server/mailgun.ts:8
+const mailgun = new Mailgun(FormData);
+const mg = mailgun.client({
+  username: "api",
+  key: env.MAILGUN_API_KEY,
+});
+```
+
+### Required Environment Variables
+
+<ParamField path="MAILGUN_API_KEY" type="string" required>
+  Your Mailgun API key for authentication
+</ParamField>
+
+<ParamField path="MAILGUN_DOMAIN" type="string" required>
+  Your verified Mailgun sending domain
+</ParamField>
+
+<ParamField path="FROM_EMAIL" type="string" required>
+  Sender email address (must be on verified domain)
+</ParamField>
+
+<ParamField path="ADMIN_EMAIL" type="string" required>
+  Administrator email address for notifications
+</ParamField>
+
+<ParamField path="ADMIN_PHONE_NUMBER" type="string" required>
+  Administrator phone number for WhatsApp notifications (format: 1234567890)
+</ParamField>
+
+<ParamField path="BETTER_AUTH_URL" type="string" required>
+  Base URL for your application (used in notification links)
+</ParamField>
+
+## Notification Types
+
+### 1. User Registration Notifications
+
+When a new user signs up, admins receive dual-channel notifications.
+
+#### WhatsApp Notification
+
+```typescript src/server/mailgun.ts:430
+export async function sendWhatsAppNotificationToAdmin(userName: string, userEmail: string) {
+  const admin = await db.user.findFirst({
+    where: { role: "ADMIN" },
+    select: { id: true },
+  });
+  
+  const adminSession = await db.whatsAppSession.findFirst({
+    where: { userId: admin.id }
+  });
+
+  if (!adminSession) {
+    throw new Error("No active WhatsApp session found for admin");
+  }
+
+  const message = `🔔 *New User Registration*
+
+A new user has registered for WhatsApp Group Manager:
+
+👤 *Name:* ${userName}
+📧 *Email:* ${userEmail}
+📅 *Date:* ${new Date().toLocaleDateString()}
+
+Please review and approve this registration in the admin dashboard.
+
+${env.BETTER_AUTH_URL}/admin`;
+
+  const response = await fetch(`${env.WAHA_API_URL}/api/sendText`, {
+    method: 'POST',
+    headers: {
+      'accept': 'application/json',
+      'X-Api-Key': env.WAHA_API_KEY,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      chatId: env.ADMIN_PHONE_NUMBER + '@c.us',
+      text: message,
+      session: adminSession.sessionName,
+    })
+  });
+
+  return { success: true };
+}
+```
+
+<Note>
+  WhatsApp notifications require:
+  - An active admin WhatsApp session
+  - Configured WAHA API endpoint
+  - Valid API key
+  - Admin phone number in E.164 format
+</Note>
+
+#### Email Notification
+
+```typescript src/server/mailgun.ts:286
+export async function sendUserRegistrationNotificationToAdmin(userName: string, userEmail: string) {
+  const emailData = {
+    from: env.FROM_EMAIL,
+    to: env.ADMIN_EMAIL,
+    subject: "New User Registration - Approval Required",
+    html: `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>New User Registration</title>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <div class="logo">📱 WhatsApp Group Manager</div>
+              <div class="notification-icon">🔔</div>
+              <h1 class="title">New User Registration</h1>
+            </div>
+            
+            <div class="content">
+              <p>Hello Admin,</p>
+              <p>A new user has registered and is waiting for approval.</p>
+              
+              <div class="user-details">
+                <div class="user-detail"><strong>Name:</strong> ${userName}</div>
+                <div class="user-detail"><strong>Email:</strong> ${userEmail}</div>
+                <div class="user-detail"><strong>Registration Date:</strong> ${new Date().toLocaleDateString()}</div>
+              </div>
+              
+              <div style="text-align: center;">
+                <a href="${env.BETTER_AUTH_URL}/admin" class="action-button">
+                  Go to Admin Dashboard
+                </a>
+              </div>
+            </div>
+          </div>
+        </body>
+      </html>
+    `,
+    text: `New User Registration
+
+Name: ${userName}
+Email: ${userEmail}
+Registration Date: ${new Date().toLocaleDateString()}
+
+Please review this registration in the admin dashboard.`
+  };
+
+  const response = await mg.messages.create(env.MAILGUN_DOMAIN, emailData);
+  return { success: true, messageId: response.id };
+}
+```
+
+### 2. Password Reset Emails
+
+Sent when users request to reset their password:
+
+```typescript src/server/mailgun.ts:14
+export async function sendResetPasswordEmail(email: string, url: string) {
+  const emailData = {
+    from: env.FROM_EMAIL,
+    to: email,
+    subject: "Reset Your Password - WhatsApp Group Manager",
+    html: `
+      <div class="container">
+        <div class="header">
+          <div class="logo">📱 WhatsApp Group Manager</div>
+          <h1 class="title">Reset Your Password</h1>
+          <p class="subtitle">We received a request to reset your password</p>
+        </div>
+        
+        <div class="content">
+          <p>Click the button below to reset your password:</p>
+          
+          <div style="text-align: center;">
+            <a href="${url}" class="reset-button">Reset Your Password</a>
+          </div>
+          
+          <div class="warning">
+            <strong>⚠️ Security Notice:</strong> This password reset link will 
+            expire in 1 hour for your security.
+          </div>
+        </div>
+      </div>
+    `,
+  };
+
+  const response = await mg.messages.create(env.MAILGUN_DOMAIN, emailData);
+  return { success: true, messageId: response.id };
+}
+```
+
+<Warning>
+  Password reset links expire after 1 hour for security. Users must request a new link if it expires.
+</Warning>
+
+### 3. Password Changed Confirmation
+
+Sent after successful password change:
+
+```typescript src/server/mailgun.ts:162
+export async function sendPasswordChangedNotification(email: string) {
+  const emailData = {
+    from: env.FROM_EMAIL,
+    to: email,
+    subject: "Password Changed Successfully - WhatsApp Group Manager",
+    html: `
+      <div class="container">
+        <div class="header">
+          <div class="logo">📱 WhatsApp Group Manager</div>
+          <div class="success-icon">✅</div>
+          <h1 class="title">Password Changed Successfully</h1>
+        </div>
+        
+        <div class="content">
+          <p>Your password has been successfully changed.</p>
+          
+          <div class="info-box">
+            <strong>✓ Password Updated:</strong> Your account is now secured 
+            with your new password.
+          </div>
+          
+          <p><strong>Didn't make this change?</strong> Contact support immediately.</p>
+        </div>
+      </div>
+    `,
+  };
+
+  const response = await mg.messages.create(env.MAILGUN_DOMAIN, emailData);
+  return { success: true, messageId: response.id };
+}
+```
+
+## Dual-Channel Delivery System
+
+The notification system attempts WhatsApp first, then falls back to email:
+
+```typescript src/server/mailgun.ts:496
+export async function notifyAdminOfNewRegistration(userName: string, userEmail: string) {
+  const results = { 
+    whatsapp: false, 
+    email: false, 
+    errors: [] as string[] 
+  };
+
+  // Try WhatsApp first
+  try {
+    await sendWhatsAppNotificationToAdmin(userName, userEmail);
+    results.whatsapp = true;
+    console.log("WhatsApp notification sent successfully");
+  } catch (error) {
+    console.log("WhatsApp notification failed, falling back to email:", error);
+    results.errors.push(`WhatsApp failed: ${error.message}`);
+    
+    // Fallback to email
+    try {
+      await sendUserRegistrationNotificationToAdmin(userName, userEmail);
+      results.email = true;
+      console.log("Email notification sent successfully");
+    } catch (error) {
+      console.error("Email notification also failed:", error);
+      results.errors.push(`Email failed: ${error.message}`);
+    }
+  }
+
+  if (!results.whatsapp && !results.email) {
+    throw new Error(`Failed to send notifications: ${results.errors.join(', ')}`);
+  }
+
+  return results;
+}
+```
+
+<Steps>
+  <Step title="WhatsApp Attempt">
+    System tries to send via WhatsApp using admin's active session
+  </Step>
+  
+  <Step title="Email Fallback">
+    If WhatsApp fails (session disconnected, API error, etc.), automatically send email
+  </Step>
+  
+  <Step title="Error Handling">
+    If both channels fail, throw error with detailed failure reasons
+  </Step>
+  
+  <Step title="Success Response">
+    Return status of both channels and any error messages
+  </Step>
+</Steps>
+
+## Notification API
+
+The notification router exposes the dual-channel system:
+
+```typescript src/server/api/routers/notification.ts:5
+export const notificationRouter = createTRPCRouter({
+  notifyAdminOfUserRegistration: publicProcedure
+    .input(z.object({
+      userName: z.string(),
+      userEmail: z.string().email(),
+    }))
+    .mutation(async ({ input }) => {
+      try {
+        const result = await notifyAdminOfNewRegistration(
+          input.userName, 
+          input.userEmail
+        );
+        return {
+          success: true,
+          whatsappSent: result.whatsapp,
+          emailSent: result.email,
+          errors: result.errors,
+        };
+      } catch (error) {
+        return {
+          success: false,
+          whatsappSent: false,
+          emailSent: false,
+          errors: [error.message],
+        };
+      }
+    }),
+});
+```
+
+### Response Format
+
+<ResponseField name="success" type="boolean">
+  Overall success status (true if at least one channel succeeded)
+</ResponseField>
+
+<ResponseField name="whatsappSent" type="boolean">
+  Whether WhatsApp notification was delivered
+</ResponseField>
+
+<ResponseField name="emailSent" type="boolean">
+  Whether email notification was delivered
+</ResponseField>
+
+<ResponseField name="errors" type="string[]">
+  Array of error messages if any channel failed
+</ResponseField>
+
+## Email Template Features
+
+All email notifications include:
+
+<AccordionGroup>
+  <Accordion title="Responsive Design">
+    - Mobile-friendly layouts
+    - Maximum width of 600px
+    - Proper viewport meta tags
+    - Consistent font sizes
+  </Accordion>
+  
+  <Accordion title="Professional Styling">
+    - Branded colors (WhatsApp green: #25D366)
+    - Clean typography using system fonts
+    - Consistent spacing and padding
+    - Subtle shadows and borders
+  </Accordion>
+  
+  <Accordion title="Security Features">
+    - Clear expiration warnings
+    - "Do not reply" disclaimers
+    - Security tips and best practices
+    - Suspicious activity warnings
+  </Accordion>
+  
+  <Accordion title="Accessibility">
+    - Plain text alternatives
+    - Semantic HTML structure
+    - High contrast text
+    - Clear call-to-action buttons
+  </Accordion>
+</AccordionGroup>
+
+## WhatsApp Message Format
+
+WhatsApp notifications use Markdown-style formatting:
+
+```markdown
+🔔 *New User Registration*
+
+A new user has registered for WhatsApp Group Manager:
+
+👤 *Name:* John Doe
+📧 *Email:* john@example.com
+📅 *Date:* 3/4/2026
+
+Please review and approve this registration in the admin dashboard.
+
+https://your-app.com/admin
+```
+
+<Note>
+  WhatsApp supports basic Markdown:
+  - `*bold*` for **bold text**
+  - `_italic_` for *italic text*
+  - Emojis for visual enhancement
+</Note>
+
+## Error Handling
+
+### WhatsApp Errors
+
+Common WhatsApp notification failures:
+
+- No admin user found in database
+- No active WhatsApp session for admin
+- WAHA API unreachable
+- Invalid API key
+- Admin phone number misconfigured
+
+### Email Errors
+
+Common email notification failures:
+
+- Invalid Mailgun API key
+- Unverified sending domain
+- Recipient email blocked
+- Rate limits exceeded
+- Invalid email format
+
+## Monitoring Notifications
+
+Track notification delivery:
+
+```typescript
+console.log("WhatsApp notification sent successfully:", response);
+console.log("Email notification sent successfully:", response);
+console.error("Failed to send notification:", error);
+```
+
+<Accordion title="Best Practices for Monitoring">
+  - Log all notification attempts
+  - Track success/failure rates
+  - Monitor Mailgun dashboard for email metrics
+  - Set up alerts for consistent failures
+  - Review error messages regularly
+</Accordion>
+
+## Configuration Checklist
+
+<Steps>
+  <Step title="Mailgun Setup">
+    - Create Mailgun account
+    - Verify sending domain
+    - Get API key
+    - Set FROM_EMAIL on verified domain
+  </Step>
+  
+  <Step title="Environment Variables">
+    ```bash
+    MAILGUN_API_KEY=key-xxx
+    MAILGUN_DOMAIN=mg.yourdomain.com
+    FROM_EMAIL=noreply@mg.yourdomain.com
+    ADMIN_EMAIL=admin@yourdomain.com
+    ADMIN_PHONE_NUMBER=1234567890
+    BETTER_AUTH_URL=https://your-app.com
+    WAHA_API_URL=http://localhost:3000
+    WAHA_API_KEY=your-waha-key
+    ```
+  </Step>
+  
+  <Step title="WhatsApp Session">
+    - Admin must have active WhatsApp session
+    - Session must be CONNECTED status
+    - Verify session in admin dashboard
+  </Step>
+  
+  <Step title="Test Notifications">
+    - Create test user registration
+    - Verify WhatsApp delivery
+    - Verify email fallback
+    - Check error logging
+  </Step>
+</Steps>
+
+## Security Considerations
+
+<AccordionGroup>
+  <Accordion title="Email Security">
+    - Use environment variables for sensitive data
+    - Never expose API keys in client code
+    - Verify Mailgun domain with SPF/DKIM
+    - Use TLS for email transmission
+  </Accordion>
+  
+  <Accordion title="WhatsApp Security">
+    - Secure WAHA API with strong API key
+    - Use HTTPS for API endpoints
+    - Validate admin session before sending
+    - Rate limit notification sends
+  </Accordion>
+  
+  <Accordion title="Data Privacy">
+    - Only send necessary user information
+    - Don't include passwords in notifications
+    - Use secure links with proper authentication
+    - Follow GDPR/privacy regulations
+  </Accordion>
+</AccordionGroup>
+
+## Customization
+
+Customize notification templates:
+
+<Tabs>
+  <Tab title="Email Branding">
+    Edit HTML templates in `src/server/mailgun.ts`:
+    - Update logo and colors
+    - Modify email copy
+    - Add company branding
+    - Customize button styles
+  </Tab>
+  
+  <Tab title="WhatsApp Messages">
+    Edit message templates in `sendWhatsAppNotificationToAdmin`:
+    - Adjust message format
+    - Change emoji usage
+    - Modify link structure
+    - Update greeting text
+  </Tab>
+</Tabs>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Admin Dashboard" icon="gauge" href="/features/admin-dashboard">
+    Learn about receiving and acting on notifications
+  </Card>
+  <Card title="Authentication" icon="lock" href="/features/authentication">
+    Understand user registration flow
+  </Card>
+</CardGroup>

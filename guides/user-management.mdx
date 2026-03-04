@@ -1,0 +1,477 @@
+---
+title: 'User Management'
+description: 'Managing users, approving registrations, and configuring role-based access control'
+icon: 'users'
+---
+
+## Overview
+
+The WhatsApp WAHA Dashboard includes a comprehensive user management system with role-based access control. Administrators can approve new users, manage permissions, and maintain security across the platform.
+
+## User Roles
+
+The system supports three distinct user roles:
+
+<CardGroup cols={3}>
+  <Card title="GUEST" icon="user-clock">
+    **Pending Approval**
+    
+    New registrations start as GUEST. Limited access until approved by admin.
+  </Card>
+  
+  <Card title="USER" icon="user">
+    **Standard Access**
+    
+    Can create campaigns, manage groups, and access core features.
+  </Card>
+  
+  <Card title="ADMIN" icon="user-shield">
+    **Full Access**
+    
+    Complete control over users, campaigns, sessions, and system settings.
+  </Card>
+</CardGroup>
+
+## Registration & Approval Flow
+
+### How User Registration Works
+
+<Steps>
+  <Step title="User Signs Up">
+    New users create an account with:
+    - Full name
+    - Email address
+    - Password (minimum 8 characters)
+    
+    Account is created with `GUEST` role automatically.
+  </Step>
+
+  <Step title="Admin Notification">
+    Administrators receive notifications via:
+    - **WhatsApp** - Sent to `ADMIN_PHONE_NUMBER` (if configured)
+    - **Email** - Sent to `ADMIN_EMAIL`
+    
+    <Info>
+    If WhatsApp notification fails, the system automatically falls back to email notification.
+    </Info>
+  </Step>
+
+  <Step title="Admin Reviews Request">
+    Administrators see pending users in the Admin Dashboard.
+  </Step>
+
+  <Step title="Approval Decision">
+    Admin can:
+    - **Approve** - Upgrade to USER role
+    - **Reject/Delete** - Remove the account
+    - **Keep Pending** - Leave as GUEST for later decision
+  </Step>
+
+  <Step title="User Gets Access">
+    Once approved, user can log in and access the full dashboard.
+  </Step>
+</Steps>
+
+## Admin Dashboard
+
+### Accessing the Admin Panel
+
+Administrators can access the admin dashboard at `/admin` or through the navigation menu.
+
+### Admin Dashboard Sections
+
+The admin panel provides comprehensive oversight:
+
+<Tabs>
+  <Tab title="Pending Users">
+    **View and manage pending registrations:**
+    
+    - User name and email
+    - Registration date
+    - Quick approve/reject actions
+    - Bulk operations (coming soon)
+    
+    **Available Actions:**
+    - Approve user (promote to USER role)
+    - Delete user (permanently remove)
+  </Tab>
+  
+  <Tab title="Approved Users">
+    **Manage active users:**
+    
+    - All users with USER or ADMIN roles
+    - User details and join dates
+    - Role management options
+    
+    **Available Actions:**
+    - Promote to ADMIN
+    - Revoke access (demote to GUEST)
+    - Delete user
+  </Tab>
+  
+  <Tab title="WhatsApp Sessions">
+    **Monitor connected WhatsApp accounts:**
+    
+    - Session names and IDs
+    - Connection status
+    - Associated groups count
+    - Last activity timestamp
+    
+    **Available Actions:**
+    - View session details
+    - Restart sessions
+    - Monitor connection health
+  </Tab>
+  
+  <Tab title="Active Campaigns">
+    **Oversee all scheduled campaigns:**
+    
+    - Campaign titles and targets
+    - Start and end dates
+    - Status and progress
+    - Target groups
+    
+    **Available Actions:**
+    - View campaign details
+    - Monitor message delivery
+    - Review campaign analytics
+  </Tab>
+  
+  <Tab title="WhatsApp Groups">
+    **Manage all connected groups:**
+    
+    - Group names and IDs
+    - Associated campaigns
+    - Session information
+    
+    **Available Actions:**
+    - View group details
+    - See campaign history
+  </Tab>
+</Tabs>
+
+## Managing Users
+
+### Approving New Users
+
+<Steps>
+  <Step title="Navigate to Pending Users">
+    In the Admin Dashboard, click on the "Pending Users" tab.
+  </Step>
+
+  <Step title="Review User Details">
+    Examine:
+    - User name
+    - Email address
+    - Registration date
+  </Step>
+
+  <Step title="Approve the User">
+    Click the "Approve" button next to the user's name.
+    
+    The system will:
+    - Update user role from GUEST to USER
+    - Grant access to dashboard features
+    - Remove from pending list
+  </Step>
+</Steps>
+
+### Promoting Users to Admin
+
+<Warning>
+Be cautious when granting admin privileges. Admins have full system access including user deletion and system configuration.
+</Warning>
+
+<Steps>
+  <Step title="Find the User">
+    Navigate to "Approved Users" tab.
+  </Step>
+
+  <Step title="Click Promote">
+    Select "Make Admin" or "Promote to Admin" option.
+  </Step>
+
+  <Step title="Confirm Action">
+    Verify the promotion and confirm.
+  </Step>
+</Steps>
+
+### Revoking User Access
+
+To temporarily revoke access without deleting the account:
+
+<Steps>
+  <Step title="Locate User">
+    Find the user in the "Approved Users" list.
+  </Step>
+
+  <Step title="Revoke Access">
+    Click "Revoke Access" button.
+    
+    This will:
+    - Demote user to GUEST role
+    - Block access to dashboard features
+    - Preserve user data and campaigns
+  </Step>
+</Steps>
+
+<Note>
+Revoked users can be re-approved later without losing their data.
+</Note>
+
+### Deleting Users
+
+<Warning>
+User deletion is permanent and cannot be undone. All associated campaigns will be affected.
+</Warning>
+
+<Steps>
+  <Step title="Select User">
+    Find the user you want to delete.
+  </Step>
+
+  <Step title="Click Delete">
+    Select the delete option.
+  </Step>
+
+  <Step title="Confirm Deletion">
+    Confirm the permanent deletion.
+    
+    **Note:** Cannot delete users with ADMIN role for safety.
+  </Step>
+</Steps>
+
+### Adding Users Directly (Admin)
+
+Admins can create pre-approved user accounts:
+
+<Steps>
+  <Step title="Click Add User">
+    In the Admin Dashboard, find the "Add New User" button.
+  </Step>
+
+  <Step title="Fill User Details">
+    Enter:
+    - Full name
+    - Email address
+    - Password (minimum 8 characters)
+  </Step>
+
+  <Step title="Create Account">
+    Submit the form.
+    
+    The user will be created with:
+    - USER role (pre-approved)
+    - Email verification not required
+    - Immediate dashboard access
+  </Step>
+</Steps>
+
+## Notification Configuration
+
+### Email Notifications
+
+Configure email notifications in your `.env` file:
+
+```env
+# Mailgun Configuration
+MAILGUN_API_KEY="your-mailgun-api-key"
+MAILGUN_DOMAIN="your-domain.com"
+FROM_EMAIL="noreply@your-domain.com"
+
+# Admin Configuration
+ADMIN_EMAIL="admin@your-domain.com"
+```
+
+### WhatsApp Notifications
+
+Enable WhatsApp notifications for new registrations:
+
+```env
+# Admin WhatsApp (optional)
+ADMIN_PHONE_NUMBER="+1234567890"
+```
+
+<Tip>
+Include country code with the plus sign. Format: `+1234567890`
+</Tip>
+
+### Notification Types
+
+Admins receive notifications for:
+
+- **New User Registrations** - Both WhatsApp and email
+- **Password Changes** - Email only (security)
+- **System Alerts** - Email (critical issues)
+
+### Notification Fallback
+
+The system implements a smart fallback strategy:
+
+```typescript
+// Attempt WhatsApp notification
+try {
+  await sendWhatsAppNotification(adminPhone, message);
+} catch (error) {
+  // Fallback to email if WhatsApp fails
+  await sendEmailNotification(adminEmail, message);
+}
+```
+
+## Security Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Verify Users" icon="user-check">
+    Always verify user identity before approval, especially for sensitive organizations.
+  </Card>
+  
+  <Card title="Limit Admins" icon="shield-halved">
+    Only promote trusted users to ADMIN role. Minimize the number of administrators.
+  </Card>
+  
+  <Card title="Regular Audits" icon="magnifying-glass">
+    Periodically review user list and revoke access for inactive or departed users.
+  </Card>
+  
+  <Card title="Strong Passwords" icon="lock">
+    Enforce strong password requirements (8+ characters, complexity).
+  </Card>
+  
+  <Card title="Monitor Activity" icon="chart-line">
+    Regularly check campaign creation and message sending patterns.
+  </Card>
+  
+  <Card title="Email Verification" icon="envelope-circle-check">
+    Consider implementing email verification for additional security.
+  </Card>
+</CardGroup>
+
+## Role Permissions Matrix
+
+| Feature | GUEST | USER | ADMIN |
+|---------|-------|------|-------|
+| View Dashboard | ❌ | ✅ | ✅ |
+| Connect WhatsApp | ❌ | ✅ | ✅ |
+| View Groups | ❌ | ✅ | ✅ |
+| Create Campaigns | ❌ | ✅ | ✅ |
+| Edit Own Campaigns | ❌ | ✅ | ✅ |
+| Delete Own Campaigns | ❌ | ✅ | ✅ |
+| View Admin Dashboard | ❌ | ❌ | ✅ |
+| Approve Users | ❌ | ❌ | ✅ |
+| Manage All Users | ❌ | ❌ | ✅ |
+| View All Campaigns | ❌ | ❌ | ✅ |
+| View All Sessions | ❌ | ❌ | ✅ |
+| System Configuration | ❌ | ❌ | ✅ |
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Admin Notifications Not Received">
+    **Check these items:**
+    
+    1. **Email notifications:**
+       - Verify `MAILGUN_API_KEY` is correct
+       - Check `ADMIN_EMAIL` is set
+       - Review Mailgun dashboard for delivery status
+       - Check spam folder
+    
+    2. **WhatsApp notifications:**
+       - Verify `ADMIN_PHONE_NUMBER` format (+1234567890)
+       - Ensure WhatsApp session is connected
+       - Check WhatsApp session has permission to message admin
+    
+    3. **Logs:**
+       ```bash
+       # Check application logs
+       pm2 logs your-app-name
+       ```
+  </Accordion>
+
+  <Accordion title="Cannot Delete User">
+    **Common causes:**
+    
+    1. **User is ADMIN** - Cannot delete admin users for safety
+    2. **Database constraint** - User has associated campaigns
+    
+    **Solutions:**
+    - For admins: First demote to USER, then delete
+    - For users with campaigns: Campaigns will be orphaned (feature update needed)
+  </Accordion>
+
+  <Accordion title="User Can't Access After Approval">
+    **Troubleshooting steps:**
+    
+    1. Verify user role changed to USER in database
+    2. Ask user to log out and log back in
+    3. Clear browser cache and cookies
+    4. Check for errors in browser console
+    5. Verify session is valid
+  </Accordion>
+
+  <Accordion title="Cannot Access Admin Dashboard">
+    **Verify:**
+    
+    1. User role is ADMIN (not USER or GUEST)
+    2. Check database: `db.user.findUnique({ where: { email: 'user@email.com' }})`
+    3. Clear authentication cookies
+    4. Restart application if roles were recently changed
+  </Accordion>
+</AccordionGroup>
+
+## API Reference
+
+Key admin API endpoints (tRPC procedures):
+
+### User Management
+
+```typescript
+// Get pending users
+adminRouter.getPendingUsers()
+
+// Get approved users
+adminRouter.getApprovedUsers()
+
+// Approve user
+adminRouter.approveUser({ userId: string })
+
+// Revoke access
+adminRouter.revokeAccess({ userId: string })
+
+// Delete user
+adminRouter.deleteUser({ userId: string })
+
+// Add new user
+adminRouter.addNewUser({ 
+  name: string, 
+  email: string, 
+  password: string 
+})
+
+// Promote to admin
+adminRouter.makeAdmin({ userId: string })
+```
+
+### System Monitoring
+
+```typescript
+// Get WhatsApp sessions
+adminRouter.getWhatsAppSessions()
+
+// Get WhatsApp groups
+adminRouter.getWhatsAppGroups()
+
+// Get active campaigns
+adminRouter.getActiveCampaigns()
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Setup WhatsApp" icon="whatsapp" href="/guides/setup-whatsapp">
+    Connect WhatsApp accounts for your users
+  </Card>
+  
+  <Card title="Create Campaigns" icon="bullhorn" href="/guides/creating-campaigns">
+    Start creating message campaigns
+  </Card>
+</CardGroup>

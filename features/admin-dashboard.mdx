@@ -1,0 +1,563 @@
+---
+title: 'Admin Dashboard'
+description: 'User approval, session management, and system-wide campaign monitoring'
+icon: 'gauge'
+---
+
+## Overview
+
+The Admin Dashboard provides comprehensive tools for managing users, monitoring WhatsApp sessions, and overseeing all campaign activity across the platform. Only users with the `ADMIN` role can access these features.
+
+## User Management
+
+Admins control user access through a three-tier approval system.
+
+### Viewing Pending Users
+
+Get all users awaiting approval (GUEST role):
+
+```typescript src/server/api/routers/admin.ts:8
+getPendingUsers: adminProcedure
+  .query(async () => {
+    const pendingUsers = await db.user.findMany({
+      where: {
+        role: 'GUEST',
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return pendingUsers;
+  })
+```
+
+### Viewing Approved Users
+
+Get all users with active access (USER or ADMIN roles):
+
+```typescript src/server/api/routers/admin.ts:29
+getApprovedUsers: adminProcedure
+  .query(async () => {
+    const approvedUsers = await db.user.findMany({
+      where: {
+        role: {
+          in: ['USER', 'ADMIN']
+        }
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return approvedUsers;
+  })
+```
+
+### Approving Users
+
+Convert a GUEST user to a USER with full platform access:
+
+```typescript src/server/api/routers/admin.ts:52
+approveUser: adminProcedure
+  .input(z.object({
+    userId: z.string(),
+  }))
+  .mutation(async ({ input }) => {
+    const updatedUser = await db.user.update({
+      where: {
+        id: input.userId,
+      },
+      data: {
+        role: 'USER',
+      },
+    });
+
+    return updatedUser;
+  })
+```
+
+<Note>
+  When a user is approved, their role changes from `GUEST` to `USER`, granting them access to create campaigns and manage WhatsApp sessions.
+</Note>
+
+### Revoking Access
+
+Downgrade a USER back to GUEST status:
+
+```typescript src/server/api/routers/admin.ts:69
+revokeAccess: adminProcedure
+  .input(z.object({
+    userId: z.string(),
+  }))
+  .mutation(async ({ input }) => {
+    const user = await db.user.findUnique({
+      where: { id: input.userId },
+      select: { role: true },
+    });
+
+    if (!user) {
+      throw new TRPCError({
+        code: 'NOT_FOUND',
+        message: 'User not found',
+      });
+    }
+
+    if (user.role === 'ADMIN') {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: "Cannot revoke admin's access",
+      });
+    }
+
+    const updatedUser = await db.user.update({
+      where: { id: input.userId },
+      data: { role: 'GUEST' },
+    });
+
+    return updatedUser;
+  })
+```
+
+<Warning>
+  Admin users cannot have their access revoked. This protection prevents accidental lockouts.
+</Warning>
+
+### Deleting Users
+
+Permanently remove a user from the system:
+
+```typescript src/server/api/routers/admin.ts:101
+deleteUser: adminProcedure
+  .input(z.object({
+    userId: z.string(),
+  }))
+  .mutation(async ({ input }) => {
+    const user = await db.user.findUnique({
+      where: { id: input.userId },
+      select: { role: true },
+    });
+
+    if (!user) {
+      throw new TRPCError({
+        code: 'NOT_FOUND',
+        message: 'User not found',
+      });
+    }
+
+    if (user.role === 'ADMIN') {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: 'Cannot delete an admin user',
+      });
+    }
+
+    await db.user.delete({
+      where: { id: input.userId },
+    });
+
+    return { success: true };
+  })
+```
+
+<Warning>
+  Deleting a user cascades to all related data:
+  - Sessions
+  - Accounts
+  - WhatsApp sessions
+  - Message campaigns
+  - Scheduled messages
+</Warning>
+
+### Adding New Users
+
+Admins can create users directly, bypassing the approval process:
+
+```typescript src/server/api/routers/admin.ts:132
+addNewUser: adminProcedure
+  .input(z.object({
+    name: z.string().min(1),
+    email: z.string().email(),
+    password: z.string().min(8).max(100),
+  }))
+  .mutation(async ({ input }) => {
+    const existingUser = await db.user.findUnique({
+      where: {
+        email: input.email,
+      },
+    });
+
+    if (existingUser) {
+      throw new TRPCError({
+        code: 'BAD_REQUEST',
+        message: 'User with this email already exists',
+      });
+    }
+
+    const newUser = await auth.api.signUpEmail({
+      body: {
+        name: input.name,
+        email: input.email,
+        password: input.password,
+      }
+    });
+    
+    if (!newUser.user) {
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: "Failed to create user",
+      });
+    }
+    
+    await db.user.update({
+      where: {
+        id: newUser.user.id,
+      },
+      data: {
+        role: 'USER',
+      }
+    });
+
+    return newUser;
+  })
+```
+
+<Note>
+  Users created by admins are automatically set to `USER` role, giving them immediate access without approval.
+</Note>
+
+### Promoting to Admin
+
+Grant admin privileges to an existing user:
+
+```typescript src/server/api/routers/admin.ts:177
+makeAdmin: adminProcedure
+  .input(z.object({
+    userId: z.string(),
+  }))
+  .mutation(async ({ input }) => {
+    const updatedUser = await db.user.update({
+      where: { id: input.userId },
+      data: { role: 'ADMIN' },
+    });
+
+    return updatedUser;
+  })
+```
+
+## WhatsApp Session Management
+
+Monitor all active WhatsApp connections across users.
+
+### Viewing Active Sessions
+
+```typescript src/server/api/routers/admin.ts:190
+getWhatsAppSessions: adminProcedure
+  .query(async () => {
+    return await db.whatsAppSession.findMany({
+      where: {
+        status: "CONNECTED",
+      },
+      include: {
+        WhatsAppGroups: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  })
+```
+
+Returns:
+- Session ID and name
+- Phone number
+- User ID
+- Connection status
+- Associated WhatsApp groups
+- Creation and update timestamps
+
+### Session Data Model
+
+```typescript prisma/schema.prisma:50
+model WhatsAppSession {
+  id          String                @id @default(cuid())
+  sessionName String                @unique
+  phoneNumber String
+  userId      String                @unique
+  status      WhatsAppSessionStatus @default(CONNECTED)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  WhatsAppGroups  WhatsAppGroup[]
+  MessageCampaign MessageCampaign[]
+}
+
+enum WhatsAppSessionStatus {
+  DISCONNECTED
+  CONNECTED
+}
+```
+
+<Accordion title="Session Management Best Practices">
+  - Monitor sessions regularly for disconnections
+  - Each user can have one unique session
+  - Sessions cascade delete when users are removed
+  - Track session creation to identify issues
+</Accordion>
+
+## Group Management
+
+View all WhatsApp groups across the system:
+
+```typescript src/server/api/routers/admin.ts:205
+getWhatsAppGroups: adminProcedure
+  .query(async () => {
+    return await db.whatsAppGroup.findMany({
+      include: {
+        campaigns: {
+          where: {
+            isDeleted: false,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  })
+```
+
+Each group includes:
+- Group ID and name
+- Associated session
+- Active campaigns
+- Creation timestamp
+
+## Campaign Monitoring
+
+Admins can view all active campaigns across all users:
+
+```typescript src/server/api/routers/admin.ts:221
+getActiveCampaigns: adminProcedure
+  .query(async () => {
+    return await db.messageCampaign.findMany({
+      where: {
+        isDeleted: false,
+        status: {
+          in: ['SCHEDULED', 'IN_PROGRESS'],
+        },
+      },
+      include: {
+        group: true,
+      },
+      orderBy: {
+        startDate: 'asc',
+      },
+    });
+  })
+```
+
+### Campaign Visibility
+
+<Tabs>
+  <Tab title="Active Campaigns">
+    Campaigns with status:
+    - `SCHEDULED` - Not yet started
+    - `IN_PROGRESS` - Currently sending messages
+    
+    Ordered by start date (earliest first)
+  </Tab>
+  
+  <Tab title="Excluded Campaigns">
+    Not shown in active list:
+    - `COMPLETED` - All messages sent
+    - `CANCELLED` - Stopped by user
+    - `FAILED` - Delivery errors
+    - Soft-deleted campaigns (`isDeleted: true`)
+  </Tab>
+</Tabs>
+
+## Admin API Overview
+
+<CardGroup cols={2}>
+  <Card title="User Operations" icon="users">
+    - Get pending users
+    - Get approved users
+    - Approve user
+    - Revoke access
+    - Delete user
+    - Add new user
+    - Make admin
+  </Card>
+  
+  <Card title="System Monitoring" icon="chart-line">
+    - View WhatsApp sessions
+    - View WhatsApp groups
+    - View active campaigns
+    - Track system health
+  </Card>
+</CardGroup>
+
+## Security Protections
+
+<AccordionGroup>
+  <Accordion title="Admin Account Protection">
+    - Admin users cannot be deleted
+    - Admin access cannot be revoked
+    - Prevents accidental system lockout
+    - Multiple admins recommended for redundancy
+  </Accordion>
+  
+  <Accordion title="Role-Based Access">
+    - All admin routes use `adminProcedure`
+    - Automatically validates ADMIN role
+    - Throws error if non-admin attempts access
+    - Session-based authentication
+  </Accordion>
+  
+  <Accordion title="Data Validation">
+    - User existence checked before operations
+    - Email uniqueness enforced
+    - Password requirements validated (8-100 chars)
+    - Proper error messages for all failures
+  </Accordion>
+</AccordionGroup>
+
+## User Lifecycle
+
+<Steps>
+  <Step title="Self-Registration">
+    User signs up with email/password → Assigned GUEST role
+  </Step>
+  
+  <Step title="Admin Notification">
+    System sends WhatsApp + Email notification to admin
+  </Step>
+  
+  <Step title="Admin Review">
+    Admin views pending users in dashboard
+  </Step>
+  
+  <Step title="Approval Decision">
+    Admin either:
+    - Approves → User role changes to USER
+    - Rejects → User stays as GUEST or is deleted
+  </Step>
+  
+  <Step title="Active Use">
+    User creates campaigns, manages sessions
+  </Step>
+  
+  <Step title="Access Management">
+    Admin can:
+    - Revoke access → Downgrade to GUEST
+    - Promote → Upgrade to ADMIN
+    - Remove → Delete user permanently
+  </Step>
+</Steps>
+
+## Dashboard Metrics
+
+Admins can track key platform metrics:
+
+<CardGroup cols={4}>
+  <Card title="Pending Users" icon="user-clock">
+    Count of GUEST users awaiting approval
+  </Card>
+  <Card title="Active Users" icon="user-check">
+    Count of USER and ADMIN users
+  </Card>
+  <Card title="Connected Sessions" icon="plug">
+    WhatsApp sessions with CONNECTED status
+  </Card>
+  <Card title="Active Campaigns" icon="chart-line">
+    Campaigns in SCHEDULED or IN_PROGRESS status
+  </Card>
+</CardGroup>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="User Approval Workflow">
+    - Review new registrations daily
+    - Verify user email addresses before approval
+    - Communicate with users about approval status
+    - Document reasons for rejection
+  </Accordion>
+  
+  <Accordion title="Session Monitoring">
+    - Check for disconnected sessions regularly
+    - Notify users of connection issues
+    - Monitor for duplicate sessions
+    - Track session creation patterns
+  </Accordion>
+  
+  <Accordion title="Campaign Oversight">
+    - Review active campaigns for policy compliance
+    - Monitor message delivery success rates
+    - Identify and resolve failed campaigns
+    - Track overall system usage
+  </Accordion>
+  
+  <Accordion title="Admin Account Management">
+    - Maintain at least 2 admin accounts
+    - Use strong passwords for admin accounts
+    - Regularly audit admin actions
+    - Document admin procedures
+  </Accordion>
+</AccordionGroup>
+
+## Error Handling
+
+The admin API provides clear error messages:
+
+```typescript
+// User not found
+throw new TRPCError({
+  code: 'NOT_FOUND',
+  message: 'User not found',
+});
+
+// Attempting to delete admin
+throw new TRPCError({
+  code: 'FORBIDDEN',
+  message: 'Cannot delete an admin user',
+});
+
+// Duplicate email
+throw new TRPCError({
+  code: 'BAD_REQUEST',
+  message: 'User with this email already exists',
+});
+
+// User creation failed
+throw new TRPCError({
+  code: 'INTERNAL_SERVER_ERROR',
+  message: "Failed to create user",
+});
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="lock" href="/features/authentication">
+    Learn about the authentication system
+  </Card>
+  <Card title="Notifications" icon="bell" href="/features/notifications">
+    Configure admin notifications
+  </Card>
+</CardGroup>

@@ -1,0 +1,259 @@
+---
+title: 'Authentication'
+description: 'User authentication, role-based access control, and account management'
+icon: 'lock'
+---
+
+## Overview
+
+WAHA Dashboard implements a secure authentication system using [Better Auth](https://better-auth.com) with email/password authentication and role-based access control. New users register as guests and must be approved by administrators before gaining full access.
+
+## User Roles
+
+The system supports three distinct user roles with different permission levels:
+
+<CardGroup cols={3}>
+  <Card title="Admin" icon="crown">
+    Full system access including user management, session monitoring, and campaign oversight
+  </Card>
+  <Card title="User" icon="user">
+    Can create and manage campaigns, schedule messages, and view their own sessions
+  </Card>
+  <Card title="Guest" icon="user-lock">
+    Limited access - awaiting admin approval to become a User
+  </Card>
+</CardGroup>
+
+### Role Definitions
+
+```typescript prisma/schema.prisma:13
+enum UserRole {
+  ADMIN
+  USER
+  GUEST
+}
+```
+
+All new registrations default to the `GUEST` role and require admin approval:
+
+```typescript src/server/auth.ts:21
+user: {
+  additionalFields: {
+    role: {
+      type: "string",
+      required: false,
+      defaultValue: "GUEST",
+      input: false,
+      output: true,
+    },
+  },
+}
+```
+
+## Sign Up Flow
+
+<Steps>
+  <Step title="User Registration">
+    New users register with their name, email, and password. The account is created with the `GUEST` role.
+  </Step>
+  
+  <Step title="Admin Notification">
+    The system sends dual-channel notifications to admins:
+    - WhatsApp message (primary)
+    - Email notification (fallback)
+  </Step>
+  
+  <Step title="Admin Approval">
+    Admins review pending registrations in the admin dashboard and approve or reject access.
+  </Step>
+  
+  <Step title="Account Activation">
+    Once approved, the user's role changes from `GUEST` to `USER`, granting full platform access.
+  </Step>
+</Steps>
+
+### Registration Notifications
+
+When a new user registers, administrators are automatically notified:
+
+```typescript src/server/mailgun.ts:496
+export async function notifyAdminOfNewRegistration(userName: string, userEmail: string) {
+  const results = { whatsapp: false, email: false, errors: [] as string[] };
+
+  try {
+    await sendWhatsAppNotificationToAdmin(userName, userEmail);
+    results.whatsapp = true;
+  } catch (error) {
+    // Fallback to email if WhatsApp fails
+    try {
+      await sendUserRegistrationNotificationToAdmin(userName, userEmail);
+      results.email = true;
+    } catch (error) {
+      results.errors.push(`Email failed: ${error.message}`);
+    }
+  }
+
+  return results;
+}
+```
+
+<Note>
+  The system attempts WhatsApp notification first, then falls back to email if WhatsApp delivery fails. This ensures admins are always notified of pending registrations.
+</Note>
+
+## Login Flow
+
+Authenticated users can log in using their email and password:
+
+```typescript src/server/auth.ts:9
+emailAndPassword: {
+  enabled: true,
+  requireEmailVerification: false,
+}
+```
+
+<Warning>
+  Email verification is currently disabled. Consider enabling it in production for enhanced security.
+</Warning>
+
+## Password Management
+
+### Password Reset
+
+Users can request password reset links via email:
+
+```typescript src/server/auth.ts:12
+sendResetPassword: async ({user, url}) => {
+  await sendResetPasswordEmail(user.email, url);
+}
+```
+
+The reset email includes:
+- Secure reset link (expires in 1 hour)
+- Security warning about unsolicited requests
+- Branded HTML email template
+
+### Password Change Notifications
+
+When a password is successfully changed, users receive a confirmation email for security purposes:
+
+```typescript src/server/mailgun.ts:162
+export async function sendPasswordChangedNotification(email: string) {
+  const emailData = {
+    from: env.FROM_EMAIL,
+    to: email,
+    subject: "Password Changed Successfully - WhatsApp Group Manager",
+    // ... HTML template
+  };
+  
+  await mg.messages.create(env.MAILGUN_DOMAIN, emailData);
+}
+```
+
+## Session Management
+
+Sessions are stored in MongoDB with tracking metadata:
+
+```typescript prisma/schema.prisma:133
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime
+  updatedAt DateTime
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+```
+
+<Accordion title="Session Features">
+  - Automatic expiration tracking
+  - IP address and user agent logging
+  - Cascade deletion when user is removed
+  - Unique token generation
+</Accordion>
+
+## Database Configuration
+
+Authentication uses Prisma with MongoDB:
+
+```typescript src/server/auth.ts:16
+database: prismaAdapter(prisma, {
+  provider: "mongodb",
+})
+```
+
+## Protected Routes
+
+The application uses tRPC procedures with role-based protection:
+
+- `publicProcedure` - Available to all users
+- `protectedProcedure` - Requires authenticated user (USER or ADMIN role)
+- `adminProcedure` - Requires ADMIN role only
+
+<CodeGroup>
+```typescript User Access
+import { protectedProcedure } from "../trpc";
+
+export const userRouter = createTRPCRouter({
+  getCampaigns: protectedProcedure
+    .query(async ({ ctx }) => {
+      // Only authenticated users can access
+      return ctx.db.messageCampaign.findMany({
+        where: {
+          session: { userId: ctx.session.user.id }
+        }
+      });
+    }),
+});
+```
+
+```typescript Admin Access
+import { adminProcedure } from "../trpc";
+
+export const adminRouter = createTRPCRouter({
+  getPendingUsers: adminProcedure
+    .query(async () => {
+      // Only admins can access
+      return db.user.findMany({
+        where: { role: 'GUEST' }
+      });
+    }),
+});
+```
+</CodeGroup>
+
+## Security Best Practices
+
+<AccordionGroup>
+  <Accordion title="Password Requirements">
+    - Minimum 8 characters
+    - Maximum 100 characters
+    - Consider implementing complexity requirements in production
+  </Accordion>
+  
+  <Accordion title="Account Protection">
+    - Admin accounts cannot be deleted
+    - Admin access cannot be revoked
+    - Sessions cascade delete with user accounts
+  </Accordion>
+  
+  <Accordion title="Email Security">
+    - Password reset links expire in 1 hour
+    - Users notified of password changes
+    - No reply-to address to prevent phishing
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Admin Dashboard" icon="gauge" href="/features/admin-dashboard">
+    Learn about user approval and admin features
+  </Card>
+  <Card title="Notifications" icon="bell" href="/features/notifications">
+    Explore multi-channel notification system
+  </Card>
+</CardGroup>

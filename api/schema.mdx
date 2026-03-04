@@ -1,0 +1,448 @@
+---
+title: 'Database Schema'
+description: 'Prisma database schema documentation for all models'
+---
+
+The WhatsApp WAHA Dashboard uses MongoDB with Prisma ORM. This page documents all database models and their relationships.
+
+## Overview
+
+The database schema consists of the following main entities:
+
+- **User**: Application users with role-based access
+- **WhatsAppSession**: WhatsApp connection sessions
+- **WhatsAppGroup**: WhatsApp groups and contacts
+- **MessageCampaign**: Scheduled message campaigns
+- **Message**: Individual scheduled messages
+- **Session**: User authentication sessions
+- **Account**: OAuth and credential accounts
+- **Verification**: Email verification tokens
+
+---
+
+## Enums
+
+### UserRole
+
+User permission levels in the application.
+
+```prisma
+enum UserRole {
+  ADMIN  // Full system access
+  USER   // Standard user access
+  GUEST  // Pending approval, limited access
+}
+```
+
+### CampaignStatus
+
+Lifecycle status of message campaigns.
+
+```prisma
+enum CampaignStatus {
+  DRAFT        // Campaign being created
+  SCHEDULED    // Campaign scheduled for future
+  IN_PROGRESS  // Campaign currently running
+  COMPLETED    // Campaign finished successfully
+  CANCELLED    // Campaign cancelled by user
+  FAILED       // Campaign failed to complete
+}
+```
+
+### WhatsAppSessionStatus
+
+Connection status of WhatsApp sessions.
+
+```prisma
+enum WhatsAppSessionStatus {
+  DISCONNECTED  // Session not connected
+  CONNECTED     // Session active and connected
+}
+```
+
+### Recurrence
+
+Recurrence patterns for message campaigns.
+
+```prisma
+enum Recurrence {
+  DAILY          // Every 1 day
+  WEEKLY         // Every 7 days
+  SEMI_MONTHLY   // Every 15 days
+  MONTHLY        // Every 30 days
+  SEMI_ANNUALLY  // Every 182 days
+  ANNUALLY       // Every 365 days
+}
+```
+
+---
+
+## Models
+
+### User
+
+Application users with authentication and authorization.
+
+```prisma
+model User {
+  id            String    @id @default(cuid()) @map("_id")
+  name          String
+  email         String    @unique
+  emailVerified Boolean
+  image         String?
+  role          UserRole  @default(GUEST)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  sessions      Session[]
+  accounts      Account[]
+  
+  @@map("user")
+}
+```
+
+**Fields:**
+- `id`: Unique identifier (CUID)
+- `name`: User's full name
+- `email`: Unique email address
+- `emailVerified`: Whether email is verified
+- `image`: Optional profile image URL
+- `role`: User's permission level (defaults to GUEST)
+- `createdAt`: Account creation timestamp
+- `updatedAt`: Last update timestamp
+
+**Relations:**
+- `sessions`: Authentication sessions for this user
+- `accounts`: OAuth/credential accounts for this user
+
+---
+
+### WhatsAppSession
+
+WhatsApp connection session for sending messages.
+
+```prisma
+model WhatsAppSession {
+  id          String                 @id @default(cuid()) @map("_id")
+  sessionName String                 @unique
+  phoneNumber String
+  userId      String                 @unique
+  status      WhatsAppSessionStatus  @default(CONNECTED)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+  
+  WhatsAppGroups   WhatsAppGroup[]
+  MessageCampaign  MessageCampaign[]
+  
+  @@unique([userId, status])
+}
+```
+
+**Fields:**
+- `id`: Unique identifier
+- `sessionName`: Unique session name for WAHA API
+- `phoneNumber`: Associated phone number
+- `userId`: Owner user ID (unique)
+- `status`: Connection status
+- `createdAt`: Session creation timestamp
+- `updatedAt`: Last update timestamp
+
+**Relations:**
+- `WhatsAppGroups`: Groups accessible through this session
+- `MessageCampaign`: Campaigns using this session
+
+**Constraints:**
+- Each user can have only one session
+- Unique combination of userId and status
+
+---
+
+### WhatsAppGroup
+
+WhatsApp group or contact for sending messages.
+
+```prisma
+model WhatsAppGroup {
+  id        String            @id @default(cuid()) @map("_id")
+  groupName String
+  groupId   String
+  sessionId String
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  
+  session   WhatsAppSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  campaigns MessageCampaign[]
+  
+  @@unique([groupId, sessionId])
+}
+```
+
+**Fields:**
+- `id`: Unique identifier
+- `groupName`: Display name of group or contact
+- `groupId`: WhatsApp group ID or contact ID
+- `sessionId`: Associated session ID
+- `createdAt`: Creation timestamp
+- `updatedAt`: Last update timestamp
+
+**Relations:**
+- `session`: Parent WhatsApp session (cascades on delete)
+- `campaigns`: Message campaigns targeting this group
+
+**Constraints:**
+- Unique combination of groupId and sessionId
+
+---
+
+### MessageCampaign
+
+Scheduled message campaign for a group or contact.
+
+```prisma
+model MessageCampaign {
+  id           String         @id @default(cuid()) @map("_id")
+  sessionId    String
+  groupId      String
+  title        String?        // Optional campaign title
+  targetAmount String?        // Optional contribution target
+  startDate    DateTime
+  endDate      DateTime
+  sendTimeUtc  DateTime
+  timeZone     String         @default("America/Chicago")
+  template     String
+  status       CampaignStatus @default(SCHEDULED)
+  recurrence   Recurrence?
+  isRecurring  Boolean        @default(false)
+  isDeleted    Boolean        @default(false)
+  isEdited     Boolean        @default(false)
+  isCompleted  Boolean        @default(false)
+  nextSendAt   DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  
+  session      WhatsAppSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  group        WhatsAppGroup   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  messages     Message[]
+}
+```
+
+**Fields:**
+- `id`: Unique identifier
+- `sessionId`: WhatsApp session to use
+- `groupId`: Target group or contact
+- `title`: Optional campaign title
+- `targetAmount`: Optional fundraising target
+- `startDate`: Campaign start date
+- `endDate`: Campaign end date
+- `sendTimeUtc`: Scheduled send time (UTC)
+- `timeZone`: User's time zone for scheduling
+- `template`: Message template with placeholders
+- `status`: Campaign lifecycle status
+- `recurrence`: Recurrence pattern (if recurring)
+- `isRecurring`: Whether campaign repeats
+- `isDeleted`: Soft delete flag
+- `isEdited`: Whether campaign was modified
+- `isCompleted`: Whether all messages sent
+- `nextSendAt`: Next scheduled send time
+- `createdAt`: Creation timestamp
+- `updatedAt`: Last update timestamp
+
+**Relations:**
+- `session`: WhatsApp session (cascades on delete)
+- `group`: Target group (cascades on delete)
+- `messages`: Individual scheduled messages
+
+---
+
+### Message
+
+Individual scheduled message in a campaign.
+
+```prisma
+model Message {
+  id                String    @id @default(cuid()) @map("_id")
+  sessionId         String
+  content           String
+  scheduledAt       DateTime
+  sentAt            DateTime?
+  isPicked          Boolean   @default(false)
+  retryCount        Int       @default(0)
+  maxRetries        Int       @default(3)
+  MessageCampaignId String
+  isDeleted         Boolean   @default(false)
+  isEdited          Boolean   @default(false)
+  isSent            Boolean   @default(false)
+  isFailed          Boolean   @default(false)
+  failedReason      String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  MessageCampaign MessageCampaign @relation(fields: [MessageCampaignId], references: [id], onDelete: Cascade)
+}
+```
+
+**Fields:**
+- `id`: Unique identifier
+- `sessionId`: WhatsApp session to use
+- `content`: Rendered message content
+- `scheduledAt`: When to send the message
+- `sentAt`: Actual send timestamp
+- `isPicked`: Whether message is being processed
+- `retryCount`: Number of send attempts
+- `maxRetries`: Maximum retry attempts (default 3)
+- `MessageCampaignId`: Parent campaign ID
+- `isDeleted`: Soft delete flag
+- `isEdited`: Whether message was modified
+- `isSent`: Whether message was sent successfully
+- `isFailed`: Whether message failed permanently
+- `failedReason`: Error message if failed
+- `createdAt`: Creation timestamp
+- `updatedAt`: Last update timestamp
+
+**Relations:**
+- `MessageCampaign`: Parent campaign (cascades on delete)
+
+---
+
+### Session
+
+User authentication session (Better Auth).
+
+```prisma
+model Session {
+  id        String   @id @default(cuid()) @map("_id")
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime
+  updatedAt DateTime
+  ipAddress String?
+  userAgent String?
+  userId    String
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("session")
+}
+```
+
+**Fields:**
+- `id`: Unique identifier
+- `expiresAt`: Session expiration timestamp
+- `token`: Unique session token
+- `createdAt`: Session creation timestamp
+- `updatedAt`: Last activity timestamp
+- `ipAddress`: Client IP address
+- `userAgent`: Client user agent
+- `userId`: Associated user ID
+
+**Relations:**
+- `user`: Session owner (cascades on delete)
+
+---
+
+### Account
+
+OAuth provider or credential account (Better Auth).
+
+```prisma
+model Account {
+  id                    String    @id @default(cuid()) @map("_id")
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime
+  updatedAt             DateTime
+  
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("account")
+}
+```
+
+**Fields:**
+- `id`: Unique identifier
+- `accountId`: Provider account ID
+- `providerId`: OAuth provider ID
+- `userId`: Associated user ID
+- `accessToken`: OAuth access token
+- `refreshToken`: OAuth refresh token
+- `idToken`: OAuth ID token
+- `accessTokenExpiresAt`: Access token expiration
+- `refreshTokenExpiresAt`: Refresh token expiration
+- `scope`: OAuth scopes
+- `password`: Hashed password (for credential provider)
+- `createdAt`: Creation timestamp
+- `updatedAt`: Last update timestamp
+
+**Relations:**
+- `user`: Account owner (cascades on delete)
+
+---
+
+### Verification
+
+Email verification and password reset tokens.
+
+```prisma
+model Verification {
+  id         String    @id @default(cuid()) @map("_id")
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime?
+  updatedAt  DateTime?
+  
+  @@map("verification")
+}
+```
+
+**Fields:**
+- `id`: Unique identifier
+- `identifier`: User identifier (email)
+- `value`: Verification token
+- `expiresAt`: Token expiration timestamp
+- `createdAt`: Creation timestamp
+- `updatedAt`: Last update timestamp
+
+---
+
+## Relationships Diagram
+
+```
+User
+├── Session (1:many)
+├── Account (1:many)
+└── WhatsAppSession (1:1)
+    ├── WhatsAppGroup (1:many)
+    │   └── MessageCampaign (1:many)
+    │       └── Message (1:many)
+    └── MessageCampaign (1:many)
+```
+
+---
+
+## Database Configuration
+
+```javascript
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+```
+
+**Environment Variable:**
+```bash
+DATABASE_URL="mongodb+srv://user:password@cluster.mongodb.net/database"
+```

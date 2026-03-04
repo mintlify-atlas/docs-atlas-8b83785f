@@ -1,0 +1,490 @@
+---
+title: 'Admin API'
+description: 'API endpoints for administrative user and system management'
+---
+
+The Admin API provides endpoints for managing users, WhatsApp sessions, groups, and campaigns. All endpoints require admin privileges.
+
+## getPendingUsers
+
+Retrieve all users awaiting approval (users with GUEST role).
+
+### Response
+
+<ResponseField name="users" type="array">
+  Array of pending user objects
+  
+  <ResponseField name="id" type="string">
+    User ID
+  </ResponseField>
+  
+  <ResponseField name="name" type="string">
+    User's name
+  </ResponseField>
+  
+  <ResponseField name="email" type="string">
+    User's email address
+  </ResponseField>
+  
+  <ResponseField name="role" type="string">
+    User role (always "GUEST" for pending users)
+  </ResponseField>
+  
+  <ResponseField name="createdAt" type="Date">
+    Account creation timestamp
+  </ResponseField>
+</ResponseField>
+
+### Example
+
+```typescript
+const pendingUsers = await trpc.admin.getPendingUsers.query();
+
+console.log(pendingUsers);
+// [
+//   {
+//     id: "clx1234567890",
+//     name: "John Doe",
+//     email: "john@example.com",
+//     role: "GUEST",
+//     createdAt: new Date("2024-01-15")
+//   }
+// ]
+```
+
+---
+
+## getApprovedUsers
+
+Retrieve all approved users (users with USER or ADMIN role).
+
+### Response
+
+<ResponseField name="users" type="array">
+  Array of approved user objects
+  
+  <ResponseField name="id" type="string">
+    User ID
+  </ResponseField>
+  
+  <ResponseField name="name" type="string">
+    User's name
+  </ResponseField>
+  
+  <ResponseField name="email" type="string">
+    User's email address
+  </ResponseField>
+  
+  <ResponseField name="role" type="string">
+    User role ("USER" or "ADMIN")
+  </ResponseField>
+  
+  <ResponseField name="createdAt" type="Date">
+    Account creation timestamp
+  </ResponseField>
+</ResponseField>
+
+### Example
+
+```typescript
+const approvedUsers = await trpc.admin.getApprovedUsers.query();
+
+console.log(approvedUsers);
+// [
+//   {
+//     id: "clx9876543210",
+//     name: "Jane Smith",
+//     email: "jane@example.com",
+//     role: "USER",
+//     createdAt: new Date("2024-01-10")
+//   }
+// ]
+```
+
+---
+
+## approveUser
+
+Approve a pending user by upgrading their role from GUEST to USER.
+
+### Input Parameters
+
+<ParamField path="userId" type="string" required>
+  The ID of the user to approve
+</ParamField>
+
+### Response
+
+<ResponseField name="user" type="object">
+  The updated user object with USER role
+</ResponseField>
+
+### Example
+
+```typescript
+const updatedUser = await trpc.admin.approveUser.mutate({
+  userId: "clx1234567890"
+});
+
+console.log(updatedUser);
+// {
+//   id: "clx1234567890",
+//   name: "John Doe",
+//   email: "john@example.com",
+//   role: "USER",
+//   ...
+// }
+```
+
+---
+
+## revokeAccess
+
+Revoke a user's access by downgrading their role to GUEST. Cannot revoke admin access.
+
+### Input Parameters
+
+<ParamField path="userId" type="string" required>
+  The ID of the user whose access should be revoked
+</ParamField>
+
+### Response
+
+<ResponseField name="user" type="object">
+  The updated user object with GUEST role
+</ResponseField>
+
+### Example
+
+```typescript
+const updatedUser = await trpc.admin.revokeAccess.mutate({
+  userId: "clx1234567890"
+});
+
+console.log(updatedUser);
+// {
+//   id: "clx1234567890",
+//   name: "John Doe",
+//   role: "GUEST",
+//   ...
+// }
+```
+
+### Error Cases
+
+- **NOT_FOUND**: User not found
+- **FORBIDDEN**: Cannot revoke admin's access
+
+---
+
+## deleteUser
+
+Permanently delete a user from the system. Cannot delete admin users.
+
+### Input Parameters
+
+<ParamField path="userId" type="string" required>
+  The ID of the user to delete
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates whether the user was deleted successfully
+</ResponseField>
+
+### Example
+
+```typescript
+const result = await trpc.admin.deleteUser.mutate({
+  userId: "clx1234567890"
+});
+
+console.log(result);
+// { success: true }
+```
+
+### Error Cases
+
+- **NOT_FOUND**: User not found
+- **FORBIDDEN**: Cannot delete an admin user
+
+---
+
+## addNewUser
+
+Create a new user with USER role and email authentication.
+
+### Input Parameters
+
+<ParamField path="name" type="string" required>
+  User's full name (minimum 1 character)
+</ParamField>
+
+<ParamField path="email" type="string" required>
+  Valid email address
+</ParamField>
+
+<ParamField path="password" type="string" required>
+  Password (8-100 characters)
+</ParamField>
+
+### Response
+
+<ResponseField name="user" type="object">
+  The newly created user object
+</ResponseField>
+
+### Example
+
+```typescript
+const newUser = await trpc.admin.addNewUser.mutate({
+  name: "Sarah Johnson",
+  email: "sarah@example.com",
+  password: "securePassword123"
+});
+
+console.log(newUser);
+// {
+//   user: {
+//     id: "clx5555555555",
+//     name: "Sarah Johnson",
+//     email: "sarah@example.com",
+//     role: "USER"
+//   }
+// }
+```
+
+### Error Cases
+
+- **BAD_REQUEST**: User with this email already exists
+- **INTERNAL_SERVER_ERROR**: Failed to create user
+
+---
+
+## makeAdmin
+
+Promote a user to admin role.
+
+### Input Parameters
+
+<ParamField path="userId" type="string" required>
+  The ID of the user to promote to admin
+</ParamField>
+
+### Response
+
+<ResponseField name="user" type="object">
+  The updated user object with ADMIN role
+</ResponseField>
+
+### Example
+
+```typescript
+const updatedUser = await trpc.admin.makeAdmin.mutate({
+  userId: "clx1234567890"
+});
+
+console.log(updatedUser);
+// {
+//   id: "clx1234567890",
+//   name: "John Doe",
+//   role: "ADMIN",
+//   ...
+// }
+```
+
+---
+
+## getWhatsAppSessions
+
+Retrieve all connected WhatsApp sessions across all users.
+
+### Response
+
+<ResponseField name="sessions" type="array">
+  Array of WhatsApp session objects
+  
+  <ResponseField name="id" type="string">
+    Session ID
+  </ResponseField>
+  
+  <ResponseField name="sessionName" type="string">
+    Unique session name
+  </ResponseField>
+  
+  <ResponseField name="phoneNumber" type="string">
+    Associated phone number
+  </ResponseField>
+  
+  <ResponseField name="userId" type="string">
+    Owner user ID
+  </ResponseField>
+  
+  <ResponseField name="status" type="string">
+    Session status ("CONNECTED")
+  </ResponseField>
+  
+  <ResponseField name="createdAt" type="Date">
+    Session creation timestamp
+  </ResponseField>
+  
+  <ResponseField name="WhatsAppGroups" type="array">
+    Array of associated WhatsApp groups
+  </ResponseField>
+</ResponseField>
+
+### Example
+
+```typescript
+const sessions = await trpc.admin.getWhatsAppSessions.query();
+
+console.log(sessions);
+// [
+//   {
+//     id: "cls1234567890",
+//     sessionName: "session_1234567890",
+//     phoneNumber: "+1234567890",
+//     userId: "clx1234567890",
+//     status: "CONNECTED",
+//     createdAt: new Date("2024-01-01"),
+//     WhatsAppGroups: [...]
+//   }
+// ]
+```
+
+---
+
+## getWhatsAppGroups
+
+Retrieve all WhatsApp groups across all sessions.
+
+### Response
+
+<ResponseField name="groups" type="array">
+  Array of WhatsApp group objects
+  
+  <ResponseField name="id" type="string">
+    Group database ID
+  </ResponseField>
+  
+  <ResponseField name="groupName" type="string">
+    Group name
+  </ResponseField>
+  
+  <ResponseField name="groupId" type="string">
+    WhatsApp group ID
+  </ResponseField>
+  
+  <ResponseField name="sessionId" type="string">
+    Associated session ID
+  </ResponseField>
+  
+  <ResponseField name="createdAt" type="Date">
+    Group creation timestamp
+  </ResponseField>
+  
+  <ResponseField name="campaigns" type="array">
+    Array of active campaigns for this group
+  </ResponseField>
+</ResponseField>
+
+### Example
+
+```typescript
+const groups = await trpc.admin.getWhatsAppGroups.query();
+
+console.log(groups);
+// [
+//   {
+//     id: "clg1234567890",
+//     groupName: "Community Group",
+//     groupId: "120363123456789012@g.us",
+//     sessionId: "cls1234567890",
+//     createdAt: new Date("2024-01-01"),
+//     campaigns: [...]
+//   }
+// ]
+```
+
+---
+
+## getActiveCampaigns
+
+Retrieve all active campaigns across all users (SCHEDULED or IN_PROGRESS status).
+
+### Response
+
+<ResponseField name="campaigns" type="array">
+  Array of active campaign objects
+  
+  <ResponseField name="id" type="string">
+    Campaign ID
+  </ResponseField>
+  
+  <ResponseField name="sessionId" type="string">
+    Associated session ID
+  </ResponseField>
+  
+  <ResponseField name="groupId" type="string">
+    Associated group ID
+  </ResponseField>
+  
+  <ResponseField name="title" type="string">
+    Campaign title
+  </ResponseField>
+  
+  <ResponseField name="status" type="string">
+    Campaign status ("SCHEDULED" or "IN_PROGRESS")
+  </ResponseField>
+  
+  <ResponseField name="startDate" type="Date">
+    Campaign start date
+  </ResponseField>
+  
+  <ResponseField name="endDate" type="Date">
+    Campaign end date
+  </ResponseField>
+  
+  <ResponseField name="group" type="object">
+    Associated group object
+  </ResponseField>
+</ResponseField>
+
+### Example
+
+```typescript
+const activeCampaigns = await trpc.admin.getActiveCampaigns.query();
+
+console.log(activeCampaigns);
+// [
+//   {
+//     id: "clc1234567890",
+//     sessionId: "cls1234567890",
+//     groupId: "clg1234567890",
+//     title: "Fundraising Campaign",
+//     status: "SCHEDULED",
+//     startDate: new Date("2024-02-01"),
+//     endDate: new Date("2024-02-28"),
+//     group: {...}
+//   }
+// ]
+```
+
+---
+
+## Type Definitions
+
+```typescript
+type UserRole = 'ADMIN' | 'USER' | 'GUEST';
+
+type WhatsAppSessionStatus = 'DISCONNECTED' | 'CONNECTED';
+
+type CampaignStatus = 
+  | 'DRAFT'
+  | 'SCHEDULED'
+  | 'IN_PROGRESS'
+  | 'COMPLETED'
+  | 'CANCELLED'
+  | 'FAILED';
+```

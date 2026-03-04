@@ -1,0 +1,757 @@
+---
+title: Installation
+description: Complete guide to installing and deploying WhatsApp Group Manager in development and production environments
+---
+
+This comprehensive guide covers everything you need to install, configure, and deploy WhatsApp Group Manager. Follow the sections relevant to your use case.
+
+## Prerequisites
+
+Before installing WhatsApp Group Manager, ensure you have the following:
+
+### Required Software
+
+<CardGroup cols={2}>
+  <Card title="Node.js 18+" icon="node-js">
+    JavaScript runtime required for Next.js
+    
+    [Download Node.js](https://nodejs.org/)
+  </Card>
+  
+  <Card title="pnpm" icon="package">
+    Fast, disk-efficient package manager
+    
+    ```bash
+    npm install -g pnpm@10.4.0
+    ```
+  </Card>
+  
+  <Card title="MongoDB" icon="database">
+    NoSQL database for data storage
+    
+    [MongoDB Atlas (Cloud)](https://www.mongodb.com/cloud/atlas) or local installation
+  </Card>
+  
+  <Card title="WAHA Server" icon="whatsapp">
+    WhatsApp HTTP API for connectivity
+    
+    [WAHA Documentation](https://waha.devlike.pro/)
+  </Card>
+</CardGroup>
+
+### Required Services
+
+<AccordionGroup>
+  <Accordion title="MongoDB Database" icon="database">
+    **Option 1: MongoDB Atlas (Recommended for beginners)**
+    
+    1. Create a free account at [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
+    2. Create a new cluster (free tier available)
+    3. Add your IP to the whitelist (or allow access from anywhere for development)
+    4. Create a database user with read/write permissions
+    5. Get your connection string (looks like `mongodb+srv://user:pass@cluster.mongodb.net/dbname`)
+
+    **Option 2: Local MongoDB**
+    
+    ```bash
+    # macOS (with Homebrew)
+    brew install mongodb-community
+    brew services start mongodb-community
+
+    # Ubuntu/Debian
+    sudo apt install mongodb
+    sudo systemctl start mongodb
+
+    # Windows
+    # Download installer from mongodb.com
+    ```
+  </Accordion>
+
+  <Accordion title="WAHA (WhatsApp HTTP API)" icon="whatsapp">
+    WAHA provides the WhatsApp connectivity layer. You have several options:
+
+    **Option 1: Docker (Recommended)**
+    
+    ```bash
+    docker run -d \
+      --name waha \
+      -p 3000:3000 \
+      -e WHATSAPP_API_KEY=your-secret-key \
+      devlikeapro/waha
+    ```
+
+    **Option 2: Cloud Hosted**
+    
+    Use a cloud-hosted WAHA instance from providers or deploy to your own VPS.
+
+    **Option 3: NPM**
+    
+    ```bash
+    npm install -g @waha/waha
+    waha start
+    ```
+
+    <Note>
+    Make note of your WAHA URL (default: `http://localhost:3000`) and API key for configuration.
+    </Note>
+  </Accordion>
+
+  <Accordion title="Mailgun Account" icon="envelope">
+    Required for password reset and admin notification emails:
+
+    1. Sign up at [Mailgun](https://www.mailgun.com/)
+    2. Verify your email domain (or use sandbox domain for testing)
+    3. Get your API key from the dashboard
+    4. Note your domain name (e.g., `mg.yourdomain.com`)
+
+    <Tip>
+    Mailgun offers 5,000 free emails per month, perfect for most use cases.
+    </Tip>
+  </Accordion>
+</AccordionGroup>
+
+## Local Development Setup
+
+<Steps>
+  <Step title="Clone Repository">
+    Clone the WhatsApp Group Manager repository from GitHub:
+
+    ```bash
+    git clone https://github.com/jevil25/whatsapp-group-manager.git
+    cd whatsapp-group-manager
+    ```
+  </Step>
+
+  <Step title="Install Dependencies">
+    Install all project dependencies using pnpm:
+
+    ```bash
+    pnpm install
+    ```
+
+    This command will:
+    - Install all packages from `package.json`
+    - Run the `postinstall` script to generate Prisma client
+    - Set up the development environment
+  </Step>
+
+  <Step title="Configure Environment Variables">
+    Create your environment configuration file:
+
+    ```bash
+    cp .env.example .env
+    ```
+
+    Edit `.env` with your actual configuration:
+
+    <CodeGroup>
+    ```env Complete Configuration
+    # Database Configuration
+    DATABASE_URL="mongodb+srv://username:password@cluster.mongodb.net/whatsapp-manager"
+
+    # WhatsApp API (WAHA) Configuration
+    WAHA_API_URL="http://localhost:3000"
+    WAHA_API_KEY="your-waha-api-key"
+
+    # Better Auth Configuration
+    BETTER_AUTH_SECRET="generate-random-secret-here"
+    BETTER_AUTH_URL="http://localhost:3001"
+
+    # Mailgun Configuration for Email
+    MAILGUN_API_KEY="key-xxxxxxxxxxxxxxxxxxxxxxxx"
+    MAILGUN_DOMAIN="mg.yourdomain.com"
+    FROM_EMAIL="noreply@yourdomain.com"
+
+    # Admin Notification Configuration
+    ADMIN_EMAIL="admin@yourdomain.com"
+    ADMIN_PHONE_NUMBER="+1234567890"
+
+    # Optional: Footer Configuration
+    NEXT_PUBLIC_SHOW_FOOTER="true"
+    ```
+
+    ```env Local Development
+    DATABASE_URL="mongodb://localhost:27017/whatsapp-manager"
+    WAHA_API_URL="http://localhost:3000"
+    WAHA_API_KEY="dev-key-123"
+    BETTER_AUTH_SECRET="dev-secret-change-in-production"
+    BETTER_AUTH_URL="http://localhost:3001"
+    MAILGUN_API_KEY="your-mailgun-key"
+    MAILGUN_DOMAIN="sandbox123.mailgun.org"
+    FROM_EMAIL="test@sandbox123.mailgun.org"
+    ADMIN_EMAIL="admin@test.com"
+    ADMIN_PHONE_NUMBER="+1234567890"
+    ```
+    </CodeGroup>
+
+    <Warning>
+    Never commit your `.env` file to version control. It contains sensitive credentials.
+    </Warning>
+  </Step>
+
+  <Step title="Generate Secure Secrets">
+    Generate a cryptographically secure secret for Better Auth:
+
+    ```bash
+    # Using OpenSSL (macOS/Linux)
+    openssl rand -base64 32
+
+    # Using Node.js
+    node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+    ```
+
+    Use the output as your `BETTER_AUTH_SECRET` value.
+  </Step>
+
+  <Step title="Set Up Database">
+    Push the Prisma schema to your MongoDB database:
+
+    ```bash
+    pnpm db:push
+    ```
+
+    This creates all necessary collections:
+    - `user` - User accounts and authentication
+    - `session` - User sessions
+    - `account` - OAuth accounts and passwords
+    - `WhatsAppSession` - WhatsApp connection sessions
+    - `WhatsAppGroup` - Synced WhatsApp groups
+    - `MessageCampaign` - Message campaigns
+    - `Message` - Individual scheduled messages
+    - `Verification` - Email verification tokens
+
+    <Tip>
+    Run `pnpm db:studio` to open Prisma Studio and visually inspect your database.
+    </Tip>
+  </Step>
+
+  <Step title="Start Development Server">
+    Launch the Next.js application:
+
+    ```bash
+    pnpm dev
+    ```
+
+    The application will start on [http://localhost:3001](http://localhost:3001)
+  </Step>
+
+  <Step title="Start Message Scheduler">
+    In a separate terminal, start the background scheduler:
+
+    ```bash
+    pnpm scheduler:start
+    ```
+
+    The scheduler:
+    - Runs independently of the Next.js app
+    - Checks for pending messages every 30 seconds
+    - Automatically sends messages at scheduled times
+    - Logs all activity to the console
+
+    <Note>
+    The scheduler must run continuously for automated message delivery. In production, use PM2 or similar process manager.
+    </Note>
+  </Step>
+</Steps>
+
+## Production Deployment
+
+### Frontend Deployment (Vercel)
+
+Deploy the Next.js application to Vercel for optimal performance:
+
+<Steps>
+  <Step title="Push to GitHub">
+    Ensure your code is committed and pushed to GitHub:
+
+    ```bash
+    git add .
+    git commit -m "Ready for deployment"
+    git push origin main
+    ```
+  </Step>
+
+  <Step title="Import to Vercel">
+    1. Visit [Vercel](https://vercel.com/)
+    2. Click "Add New Project"
+    3. Import your GitHub repository
+    4. Configure project settings:
+       - **Framework Preset**: Next.js
+       - **Build Command**: `pnpm build` (default)
+       - **Output Directory**: `.next` (default)
+  </Step>
+
+  <Step title="Configure Environment Variables">
+    Add these environment variables in Vercel dashboard:
+
+    ```env
+    DATABASE_URL=mongodb+srv://user:pass@cluster.mongodb.net/whatsapp-manager
+    BETTER_AUTH_SECRET=your-production-secret-key
+    BETTER_AUTH_URL=https://your-app.vercel.app
+    WAHA_API_URL=http://your-waha-server:3000
+    WAHA_API_KEY=your-production-waha-key
+    MAILGUN_API_KEY=your-mailgun-key
+    MAILGUN_DOMAIN=mg.yourdomain.com
+    FROM_EMAIL=noreply@yourdomain.com
+    ADMIN_EMAIL=admin@yourdomain.com
+    ADMIN_PHONE_NUMBER=+1234567890
+    ```
+
+    <Warning>
+    Use different secrets and API keys for production. Never use development credentials in production.
+    </Warning>
+  </Step>
+
+  <Step title="Deploy">
+    Click "Deploy" and wait for the build to complete. Vercel will:
+    - Install dependencies
+    - Run Prisma generation
+    - Build the Next.js application
+    - Deploy to CDN
+
+    Your app will be available at `https://your-app.vercel.app`
+  </Step>
+</Steps>
+
+### Backend Scheduler (DigitalOcean VPS)
+
+The message scheduler needs to run on a server 24/7. Here's how to deploy it to a VPS:
+
+<Steps>
+  <Step title="Create DigitalOcean Droplet">
+    Create a VPS to run the scheduler:
+
+    1. [Get $200 in credits](https://m.do.co/c/ddd03661770c) (referral link)
+    2. Create a new Droplet:
+       - **Distribution**: Ubuntu 22.04 LTS
+       - **Plan**: Basic ($6/month, 1GB RAM is sufficient)
+       - **Datacenter**: Choose closest to your WAHA server
+       - **Authentication**: SSH keys recommended (or password for beginners)
+
+    <Tip>
+    A basic 1GB RAM droplet can handle thousands of scheduled messages efficiently.
+    </Tip>
+  </Step>
+
+  <Step title="Initial Server Setup">
+    Connect to your server and set up the environment:
+
+    ```bash
+    # Connect via SSH
+    ssh root@your-server-ip
+
+    # Update system packages
+    apt update && apt upgrade -y
+
+    # Install Node.js 18+
+    curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+    apt-get install -y nodejs
+
+    # Install pnpm globally
+    npm install -g pnpm@10.4.0
+
+    # Install PM2 for process management
+    npm install -g pm2
+
+    # Install Git
+    apt install -y git
+    ```
+  </Step>
+
+  <Step title="Deploy Application">
+    Clone your repository and set up the scheduler:
+
+    ```bash
+    # Clone repository
+    cd /opt
+    git clone https://github.com/jevil25/whatsapp-group-manager.git
+    cd whatsapp-group-manager
+
+    # Install dependencies
+    pnpm install
+
+    # Create production environment file
+    nano .env.production
+    ```
+
+    Add your production environment variables:
+
+    ```env
+    DATABASE_URL="mongodb+srv://user:pass@cluster.mongodb.net/whatsapp-manager"
+    WAHA_API_URL="http://your-waha-server:3000"
+    WAHA_API_KEY="your-production-waha-key"
+    ```
+
+    Save and exit (Ctrl+X, then Y, then Enter).
+  </Step>
+
+  <Step title="Generate Prisma Client">
+    Generate the Prisma client for production:
+
+    ```bash
+    pnpm prisma:generate
+    ```
+  </Step>
+
+  <Step title="Start with PM2">
+    Use PM2 to run the scheduler as a persistent background service:
+
+    ```bash
+    # Start scheduler with PM2
+    pm2 start src/scripts/messageScheduler.ts \
+      --interpreter ./node_modules/.bin/tsx \
+      --name whatsapp-scheduler \
+      --env production
+
+    # Save PM2 process list
+    pm2 save
+
+    # Configure PM2 to start on system boot
+    pm2 startup
+    ```
+
+    The scheduler will now:
+    - Run automatically on server restart
+    - Restart automatically if it crashes
+    - Log all activity for monitoring
+  </Step>
+
+  <Step title="Monitor Scheduler">
+    Useful PM2 commands for managing the scheduler:
+
+    ```bash
+    # Check status
+    pm2 status
+
+    # View real-time logs
+    pm2 logs whatsapp-scheduler
+
+    # View last 100 lines
+    pm2 logs whatsapp-scheduler --lines 100
+
+    # Restart scheduler
+    pm2 restart whatsapp-scheduler
+
+    # Stop scheduler
+    pm2 stop whatsapp-scheduler
+
+    # View detailed metrics
+    pm2 monit
+    ```
+  </Step>
+</Steps>
+
+### Updating Production Deployment
+
+To update your production scheduler:
+
+```bash
+# SSH into your server
+ssh root@your-server-ip
+
+# Navigate to project directory
+cd /opt/whatsapp-group-manager
+
+# Pull latest changes
+git pull origin main
+
+# Install any new dependencies
+pnpm install
+
+# Regenerate Prisma client if schema changed
+pnpm prisma:generate
+
+# Restart scheduler
+pm2 restart whatsapp-scheduler
+```
+
+## Environment Variables Reference
+
+<ParamField path="DATABASE_URL" type="string" required>
+  MongoDB connection string
+  
+  **Format**: `mongodb+srv://username:password@cluster.mongodb.net/database-name`
+  
+  **Example**: `mongodb+srv://admin:pass123@cluster0.mongodb.net/whatsapp-prod`
+</ParamField>
+
+<ParamField path="WAHA_API_URL" type="string" required>
+  Base URL of your WAHA server
+  
+  **Example**: `http://localhost:3000` or `https://waha.yourdomain.com`
+</ParamField>
+
+<ParamField path="WAHA_API_KEY" type="string" required>
+  API key for authenticating with WAHA
+  
+  **Example**: `abc123xyz789`
+</ParamField>
+
+<ParamField path="BETTER_AUTH_SECRET" type="string" required>
+  Secret key for Better Auth session encryption
+  
+  **Generate with**: `openssl rand -base64 32`
+  
+  **Example**: `xK8vN2mP9qR4sT5uV6wX7yZ8aB1cD2eF3gH4iJ5kL6==`
+</ParamField>
+
+<ParamField path="BETTER_AUTH_URL" type="string" required>
+  Base URL of your application
+  
+  **Development**: `http://localhost:3001`
+  
+  **Production**: `https://your-app.vercel.app`
+</ParamField>
+
+<ParamField path="MAILGUN_API_KEY" type="string" required>
+  Mailgun API key for sending emails
+  
+  **Format**: `key-xxxxxxxxxxxxxxxxxxxxxxxx`
+  
+  **Find in**: Mailgun Dashboard → Settings → API Keys
+</ParamField>
+
+<ParamField path="MAILGUN_DOMAIN" type="string" required>
+  Your verified Mailgun domain
+  
+  **Example**: `mg.yourdomain.com` or `sandboxxxxx.mailgun.org`
+</ParamField>
+
+<ParamField path="FROM_EMAIL" type="string" required>
+  Email address to send from (must use Mailgun domain)
+  
+  **Example**: `noreply@yourdomain.com`
+</ParamField>
+
+<ParamField path="ADMIN_EMAIL" type="string" required>
+  Admin email for receiving notifications
+  
+  **Example**: `admin@yourdomain.com`
+</ParamField>
+
+<ParamField path="ADMIN_PHONE_NUMBER" type="string" optional>
+  Admin WhatsApp number for notifications
+  
+  **Format**: Include country code with +
+  
+  **Example**: `+1234567890`
+</ParamField>
+
+<ParamField path="NEXT_PUBLIC_SHOW_FOOTER" type="string" optional>
+  Show or hide footer in application
+  
+  **Default**: `true`
+  
+  **Options**: `true` or `false`
+</ParamField>
+
+## Database Schema Overview
+
+The application uses these main collections:
+
+<AccordionGroup>
+  <Accordion title="User & Authentication" icon="user">
+    - **user**: User accounts with roles (ADMIN, USER, GUEST)
+    - **session**: Active user sessions with expiry
+    - **account**: Password hashes and OAuth provider data
+    - **verification**: Email verification tokens
+  </Accordion>
+
+  <Accordion title="WhatsApp Connections" icon="whatsapp">
+    - **WhatsAppSession**: Connected WhatsApp accounts
+      - `sessionName`: Unique session identifier
+      - `phoneNumber`: Connected phone number
+      - `status`: CONNECTED or DISCONNECTED
+    - **WhatsAppGroup**: Synced WhatsApp groups
+      - `groupName`: Display name
+      - `groupId`: WhatsApp group ID
+  </Accordion>
+
+  <Accordion title="Campaign Management" icon="calendar">
+    - **MessageCampaign**: Scheduled campaigns
+      - `title`: Campaign name
+      - `template`: Message template with placeholders
+      - `sendTimeUtc`: Scheduled send time
+      - `status`: DRAFT, SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED, FAILED
+    - **Message**: Individual messages to send
+      - `content`: Processed message content
+      - `scheduledAt`: When to send
+      - `sentAt`: When actually sent
+      - `isSent`: Delivery status
+  </Accordion>
+</AccordionGroup>
+
+## Available Scripts
+
+<CodeGroup>
+```bash Development
+# Start development server (Next.js on port 3001)
+pnpm dev
+
+# Start message scheduler
+pnpm scheduler:start
+
+# Open Prisma Studio (database GUI)
+pnpm db:studio
+```
+
+```bash Building
+# Build for production (includes db:push and prisma:generate)
+pnpm build
+
+# Start production server
+pnpm start
+
+# Build and start
+pnpm preview
+```
+
+```bash Database
+# Push schema to database
+pnpm db:push
+
+# Generate Prisma Client
+pnpm prisma:generate
+
+# Open Prisma Studio
+pnpm db:studio
+```
+
+```bash Code Quality
+# Run ESLint
+pnpm lint
+
+# Fix ESLint issues automatically
+pnpm lint:fix
+
+# Run TypeScript type checking
+pnpm typecheck
+
+# Run both lint and typecheck
+pnpm check
+
+# Check code formatting
+pnpm format:check
+
+# Format code with Prettier
+pnpm format:write
+```
+</CodeGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Prisma Client Generation Failed">
+    **Error**: `@prisma/client did not initialize yet`
+
+    **Solution**:
+    ```bash
+    # Manually generate Prisma client
+    pnpm prisma:generate
+
+    # If that fails, try
+    rm -rf node_modules/.prisma
+    pnpm install
+    ```
+  </Accordion>
+
+  <Accordion title="MongoDB Connection Issues">
+    **Error**: `Error connecting to database` or `ECONNREFUSED`
+
+    **Solutions**:
+    - Verify `DATABASE_URL` is correctly formatted
+    - For MongoDB Atlas:
+      - Whitelist your IP address in Network Access
+      - Check username/password are URL-encoded
+      - Ensure database user has read/write permissions
+    - For local MongoDB:
+      - Ensure MongoDB service is running
+      - Try `mongodb://localhost:27017/whatsapp-manager`
+  </Accordion>
+
+  <Accordion title="WAHA Connection Failed">
+    **Error**: `Cannot connect to WAHA server`
+
+    **Solutions**:
+    - Verify WAHA is running: `curl http://localhost:3000/health`
+    - Check `WAHA_API_URL` points to correct address
+    - Verify `WAHA_API_KEY` matches WAHA configuration
+    - Ensure no firewall blocking the connection
+  </Accordion>
+
+  <Accordion title="Email Sending Fails">
+    **Error**: `Failed to send email` or Mailgun errors
+
+    **Solutions**:
+    - Verify Mailgun API credentials are correct
+    - Check domain is verified in Mailgun dashboard
+    - Ensure `FROM_EMAIL` uses your Mailgun domain
+    - For sandbox domain, add recipient email to authorized recipients
+  </Accordion>
+
+  <Accordion title="Messages Not Sending Automatically">
+    **Issue**: Scheduled messages remain in SCHEDULED status
+
+    **Solutions**:
+    - Ensure scheduler is running: `pnpm scheduler:start`
+    - Check scheduler logs for errors
+    - Verify scheduled time is in the past (UTC)
+    - Check WhatsApp session is CONNECTED
+    - Ensure WAHA server is accessible from scheduler
+  </Accordion>
+
+  <Accordion title="Port 3001 Already in Use">
+    **Error**: `Port 3001 is already in use`
+
+    **Solution**:
+    ```bash
+    # Find process using port 3001
+    lsof -i :3001
+
+    # Kill the process (replace PID with actual process ID)
+    kill -9 PID
+
+    # Or use a different port
+    PORT=3002 pnpm dev
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Security Best Practices
+
+<Warning>
+Follow these security guidelines for production deployments:
+</Warning>
+
+- **Never commit `.env` file** to version control
+- **Use strong, unique secrets** for `BETTER_AUTH_SECRET` in production
+- **Rotate API keys** regularly (Mailgun, WAHA)
+- **Enable MongoDB authentication** and use strong passwords
+- **Restrict MongoDB network access** to your server IPs only
+- **Use HTTPS** for production deployments (Vercel provides this automatically)
+- **Set up IP whitelisting** for WAHA if possible
+- **Regularly update dependencies** with `pnpm update`
+- **Monitor logs** for suspicious activity
+- **Backup database** regularly (MongoDB Atlas has automated backups)
+
+## Next Steps
+
+After successful installation:
+
+<CardGroup cols={2}>
+  <Card title="User Guide" icon="book">
+    Learn how to use the dashboard and manage campaigns
+  </Card>
+  
+  <Card title="API Documentation" icon="code">
+    Explore tRPC API endpoints and integration options
+  </Card>
+  
+  <Card title="Contributing" icon="code-pull-request" href="https://github.com/jevil25/whatsapp-group-manager">
+    Contribute to the project on GitHub
+  </Card>
+  
+  <Card title="Support" icon="life-ring">
+    Get help and report issues
+  </Card>
+</CardGroup>

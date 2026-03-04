@@ -1,0 +1,144 @@
+---
+title: Introduction
+description: A powerful web application to manage WhatsApp groups and schedule automated message campaigns with ease
+---
+
+## Welcome to WhatsApp Group Manager
+
+WhatsApp Group Manager is a comprehensive SaaS platform built to streamline WhatsApp communication at scale. Whether you're managing community announcements, marketing campaigns, or team notifications, this platform provides the tools you need to schedule, automate, and track your WhatsApp messaging campaigns.
+
+## What is WhatsApp Group Manager?
+
+WhatsApp Group Manager is a web-based dashboard that connects to the WAHA (WhatsApp HTTP API) service, allowing you to:
+
+- **Schedule messages** to multiple WhatsApp groups simultaneously
+- **Automate delivery** with a background scheduler service
+- **Track campaign progress** with real-time analytics and status updates
+- **Manage user access** with role-based permissions and admin approvals
+- **Monitor WhatsApp sessions** with live connection status and restart capabilities
+
+<Note>
+This platform requires WAHA (WhatsApp HTTP API) to connect to WhatsApp Web. You'll need a WAHA instance running to use this dashboard.
+</Note>
+
+## Key Benefits
+
+<CardGroup cols={2}>
+  <Card title="Save Time" icon="clock">
+    Schedule messages in advance and let the automated system handle delivery. No more manual sending to multiple groups.
+  </Card>
+  
+  <Card title="Scale Effortlessly" icon="chart-line">
+    Manage hundreds of WhatsApp groups from a single dashboard with search, pagination, and bulk selection.
+  </Card>
+  
+  <Card title="Track Everything" icon="chart-bar">
+    Monitor campaign status, completion percentages, and delivery metrics in real-time with visual progress indicators.
+  </Card>
+  
+  <Card title="Secure Access" icon="shield">
+    Control who can access your dashboard with admin approval workflows and role-based access control (ADMIN, USER, GUEST).
+  </Card>
+</CardGroup>
+
+## How It Works
+
+<Steps>
+  <Step title="Connect WhatsApp">
+    Link your WhatsApp account by scanning a QR code. The system maintains a persistent connection through WAHA.
+  </Step>
+  
+  <Step title="Create Campaigns">
+    Select target groups, write your message with dynamic placeholders like `{days_left}`, and set the delivery schedule.
+  </Step>
+  
+  <Step title="Automated Delivery">
+    The background scheduler checks every 30 seconds for pending messages and automatically sends them at the scheduled time.
+  </Step>
+  
+  <Step title="Monitor Progress">
+    Track campaign status, view completion percentages, and manage sessions from the comprehensive dashboard.
+  </Step>
+</Steps>
+
+## Core Features
+
+### Campaign Management
+
+- **Message Scheduling**: Set specific dates and times with timezone support
+- **Dynamic Templates**: Use placeholders in messages that get replaced with campaign data
+- **Progress Tracking**: Visual progress bars show real-time campaign completion
+- **Group Selection**: Search and paginate through WhatsApp groups with ease
+- **Campaign Analytics**: Track status, delivery metrics, and performance
+
+### User Management
+
+- **Admin Approval System**: New users must be approved before accessing the dashboard
+- **Multi-Channel Notifications**: Admins receive alerts via WhatsApp and email
+- **Role-Based Access**: Three user roles (ADMIN, USER, GUEST) with different permissions
+- **User Promotion**: Admins can promote users, revoke access, or delete accounts
+
+### Session Management
+
+- **Real-Time Status**: Live monitoring of WhatsApp connection status
+- **Auto-Refresh**: Automatic session status updates every few seconds
+- **Manual Restart**: Restart WhatsApp sessions when connection issues occur
+- **Multi-Session Support**: Connect multiple WhatsApp accounts
+
+### Security & Notifications
+
+- **Secure Authentication**: Built with Better Auth v1.2+ for robust security
+- **Password Reset**: Email-based password recovery via Mailgun
+- **Change Notifications**: Users receive email confirmations for password changes
+- **Dual-Channel Alerts**: Critical notifications sent via both WhatsApp and email
+
+## Use Cases
+
+<AccordionGroup>
+  <Accordion title="Community Management">
+    Send regular updates, announcements, and reminders to community WhatsApp groups. Schedule messages in advance for events, meetings, or important dates.
+  </Accordion>
+  
+  <Accordion title="Marketing Campaigns">
+    Launch coordinated marketing campaigns across multiple customer groups. Track delivery and engagement with detailed analytics.
+  </Accordion>
+  
+  <Accordion title="Team Communication">
+    Automate team notifications, shift reminders, and project updates. Ensure timely delivery without manual intervention.
+  </Accordion>
+  
+  <Accordion title="Educational Institutions">
+    Send class schedules, exam reminders, and announcements to student and parent groups. Schedule recurring messages for weekly updates.
+  </Accordion>
+</AccordionGroup>
+
+## Technology Stack
+
+Built with modern, production-ready technologies:
+
+- **Next.js 15** with App Router for server-side rendering and optimal performance
+- **TypeScript 5.8+** for type safety and better developer experience
+- **MongoDB** with Prisma ORM for flexible data modeling
+- **tRPC v11+** for end-to-end type-safe APIs
+- **Tailwind CSS v4.0+** for responsive, modern UI design
+- **Better Auth v1.2+** for secure authentication and authorization
+- **Mailgun** for reliable email delivery
+- **Luxon** for timezone-aware date handling
+
+<Warning>
+This is a self-hosted solution that requires technical setup. You'll need a server to run the message scheduler service and a WAHA instance for WhatsApp connectivity.
+</Warning>
+
+## What's Next?
+
+Ready to get started? Follow our quickstart guide to set up your WhatsApp Group Manager instance:
+
+<Card title="Quickstart Guide" icon="rocket" href="/quickstart">
+  Get up and running in minutes with our step-by-step quickstart guide
+</Card>
+
+Or dive into detailed installation instructions:
+
+<Card title="Installation" icon="download" href="/installation">
+  Complete installation guide with all prerequisites and configurations
+</Card>

@@ -1,0 +1,203 @@
+---
+title: 'Deploy to Vercel'
+description: 'Deploy the WhatsApp WAHA Dashboard to Vercel with step-by-step configuration'
+---
+
+# Deploy to Vercel
+
+Deploy your WhatsApp WAHA Dashboard to Vercel for a fast, scalable frontend hosting solution.
+
+<Warning>
+  The Vercel deployment will handle the web application only. You'll need a separate VPS (like DigitalOcean) to run the message scheduler service continuously. See [Scheduler Setup](/deployment/scheduler-setup) for details.
+</Warning>
+
+## Prerequisites
+
+- GitHub account with your code repository
+- Vercel account (free tier available)
+- MongoDB database (MongoDB Atlas recommended)
+- WAHA (WhatsApp HTTP API) server running
+- Mailgun account for email functionality
+
+## Deployment Steps
+
+### 1. Prepare Your Repository
+
+Ensure your code is pushed to GitHub:
+
+<CodeGroup>
+```bash Git Commands
+git add .
+git commit -m "Prepare for Vercel deployment"
+git push origin main
+```
+</CodeGroup>
+
+### 2. Import to Vercel
+
+1. Visit [vercel.com](https://vercel.com/) and sign in
+2. Click **"Add New Project"**
+3. Import your GitHub repository
+4. Select the `whatsapp-group-manager` repository
+
+### 3. Configure Build Settings
+
+Vercel should auto-detect Next.js. Verify these settings:
+
+- **Framework Preset**: Next.js
+- **Build Command**: `pnpm build`
+- **Output Directory**: `.next`
+- **Install Command**: `pnpm install`
+
+### 4. Add Environment Variables
+
+In the Vercel dashboard, add all required environment variables. See [Environment Variables](/deployment/environment-variables) for complete reference.
+
+<CodeGroup>
+```env Production Variables
+# Database
+DATABASE_URL=mongodb+srv://username:password@cluster.mongodb.net/whatsapp-manager
+
+# WhatsApp API
+WAHA_API_URL=http://your-waha-server:3000
+WAHA_API_KEY=your-waha-api-key
+
+# Better Auth
+BETTER_AUTH_SECRET=your-production-secret-min-32-chars
+BETTER_AUTH_URL=https://your-app.vercel.app
+
+# Mailgun
+MAILGUN_API_KEY=your-mailgun-api-key
+MAILGUN_DOMAIN=your-mailgun-domain
+FROM_EMAIL=noreply@yourdomain.com
+
+# Admin Configuration
+ADMIN_EMAIL=admin@yourdomain.com
+ADMIN_PHONE_NUMBER=+1234567890
+
+# Optional: Footer Configuration
+NEXT_PUBLIC_SHOW_FOOTER=true
+```
+</CodeGroup>
+
+<Warning>
+  **Security Critical:**
+  - Generate a strong `BETTER_AUTH_SECRET` (minimum 32 characters)
+  - Never commit `.env` files to version control
+  - Update `BETTER_AUTH_URL` to your actual Vercel domain
+</Warning>
+
+### 5. Deploy
+
+1. Click **"Deploy"**
+2. Vercel will automatically:
+   - Install dependencies with pnpm
+   - Push Prisma schema to MongoDB
+   - Generate Prisma client
+   - Build the Next.js application
+   - Deploy to production
+
+3. Your app will be available at `https://your-app.vercel.app`
+
+## Post-Deployment Steps
+
+### Update Better Auth URL
+
+After first deployment, update the `BETTER_AUTH_URL` environment variable:
+
+1. Go to **Project Settings** → **Environment Variables**
+2. Update `BETTER_AUTH_URL` to your actual Vercel URL
+3. Redeploy the application
+
+### Set Up Custom Domain (Optional)
+
+1. Go to **Project Settings** → **Domains**
+2. Add your custom domain
+3. Configure DNS settings as instructed
+4. Update `BETTER_AUTH_URL` to your custom domain
+
+### Verify Deployment
+
+<CodeGroup>
+```bash Health Checks
+# Test the application
+curl https://your-app.vercel.app
+
+# Check API health
+curl https://your-app.vercel.app/api/health
+```
+</CodeGroup>
+
+## Deployment Configuration Options
+
+### Build Optimization
+
+The `package.json` build script includes automatic database setup:
+
+```json
+"build": "prisma db push && prisma generate && next build"
+```
+
+This ensures:
+- Database schema is always up-to-date
+- Prisma client is generated before build
+- Seamless deployments on every push
+
+### Automatic Deployments
+
+Vercel automatically deploys:
+- **Production**: Every push to `main` branch
+- **Preview**: Every pull request
+
+To disable automatic deployments:
+1. Go to **Project Settings** → **Git**
+2. Configure deployment branches
+
+## Troubleshooting
+
+### Build Failures
+
+**Database connection issues:**
+```bash
+# Verify DATABASE_URL is correctly set
+# Check MongoDB Atlas network access whitelist
+# Add 0.0.0.0/0 for Vercel deployments
+```
+
+**Prisma generation errors:**
+- Ensure `prisma` is in devDependencies
+- Check that `postinstall` script runs `prisma generate`
+
+### Runtime Errors
+
+**Authentication not working:**
+- Verify `BETTER_AUTH_SECRET` is set
+- Confirm `BETTER_AUTH_URL` matches your domain
+- Check all auth-related environment variables
+
+**Email notifications failing:**
+- Verify Mailgun credentials
+- Check `FROM_EMAIL` domain matches `MAILGUN_DOMAIN`
+- Review Vercel function logs
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Scheduler Setup" icon="clock" href="/deployment/scheduler-setup">
+    Set up the message scheduler on a VPS
+  </Card>
+  <Card title="Environment Variables" icon="gear" href="/deployment/environment-variables">
+    Complete environment variable reference
+  </Card>
+</CardGroup>
+
+## Monitoring
+
+Monitor your Vercel deployment:
+
+1. **Analytics**: Track page views and performance
+2. **Logs**: View real-time function logs
+3. **Insights**: Monitor Web Vitals and performance metrics
+4. **Deployments**: Track deployment history and rollback if needed
+
+Access these from your Vercel project dashboard.

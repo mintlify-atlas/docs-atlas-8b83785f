@@ -1,97 +1,199 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "WhatsApp WAHA Dashboard"
+mode: "custom"
 ---
 
-## Setting up
+<div className="relative py-20 overflow-hidden bg-gradient-to-br from-[#128C7E] via-[#25D366] to-[#075E54] dark:from-[#0a1612] dark:via-[#1a1d27] dark:to-[#0f1117]">
+  <div className="absolute inset-0 bg-black/30 dark:bg-black/40"></div>
+  <div className="relative max-w-6xl mx-auto px-6 lg:px-8">
+    <div className="text-center">
+      <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white mb-6 tracking-tight">
+        WhatsApp WAHA Dashboard
+      </h1>
+      <p className="text-xl sm:text-2xl text-white/90 max-w-3xl mx-auto mb-10 leading-relaxed">
+        Schedule and send messages to multiple WhatsApp groups automatically with powerful campaign management and admin controls
+      </p>
+      <div className="flex flex-wrap justify-center gap-4">
+        <a
+          href="/quickstart"
+          className="inline-flex items-center px-8 py-3.5 text-base font-semibold rounded-lg bg-white text-[#128C7E] hover:bg-gray-100 transition-colors shadow-lg"
+        >
+          Get Started
+        </a>
+        <a
+          href="/introduction"
+          className="inline-flex items-center px-8 py-3.5 text-base font-semibold rounded-lg border-2 border-white/30 bg-white/10 text-white hover:bg-white/20 hover:border-white/50 transition-colors backdrop-blur-sm"
+        >
+          View Documentation
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
 
-Get your documentation site up and running in minutes.
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <div className="text-center mb-12">
+    <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+      Get Started in Minutes
+    </h2>
+    <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+      Follow these steps to set up your WhatsApp campaign automation
+    </p>
+  </div>
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+  <Steps>
+    <Step title="Install Dependencies">
+      Clone the repository and install the required packages using your preferred package manager.
 
-## Make it yours
+      <CodeGroup>
+      ```bash npm
+      npm install
+      ```
+      ```bash yarn
+      yarn install
+      ```
+      ```bash pnpm
+      pnpm install
+      ```
+      </CodeGroup>
+    </Step>
 
-Design a docs site that looks great and empowers your users.
+    <Step title="Configure Environment">
+      Set up your environment variables including MongoDB connection, WAHA API credentials, and authentication secrets.
 
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
-  </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
-  </Card>
+      ```bash
+      DATABASE_URL="mongodb+srv://username:password@cluster.mongodb.net/whatsapp-manager"
+      WAHA_API_URL="http://localhost:3000"
+      WAHA_API_KEY="your-waha-api-key"
+      BETTER_AUTH_SECRET="your-secret-key"
+      ```
+    </Step>
+
+    <Step title="Connect WhatsApp">
+      Launch the application and scan the QR code with your WhatsApp mobile app to establish the connection.
+
+      <Note>
+        Make sure you have WAHA (WhatsApp HTTP API) running before connecting your WhatsApp account.
+      </Note>
+    </Step>
+
+    <Step title="Create Your First Campaign">
+      Select your target groups, compose your message, and schedule delivery times. The system handles the rest automatically.
+    </Step>
+  </Steps>
+</div>
+
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <div className="text-center mb-12">
+    <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+      Powerful Features
+    </h2>
+    <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+      Everything you need to manage WhatsApp campaigns at scale
+    </p>
+  </div>
+
+  <CardGroup cols={2}>
     <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
-  </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
-  </Card>
-</Columns>
+      title="Campaign Management"
+      icon="calendar-days"
+      href="/features/campaign-management"
+    >
+      Create, schedule, and track message campaigns with progress monitoring and analytics
+    </Card>
+    <Card
+      title="Message Scheduling"
+      icon="clock"
+      href="/features/message-scheduling"
+    >
+      Schedule messages with timezone support, recurrence patterns, and dynamic templates
+    </Card>
+    <Card
+      title="Admin Dashboard"
+      icon="gauge-high"
+      href="/features/admin-dashboard"
+    >
+      Manage users, monitor sessions, and control access with comprehensive admin tools
+    </Card>
+    <Card
+      title="Role-Based Auth"
+      icon="shield-halved"
+      href="/features/authentication"
+    >
+      Secure authentication with Admin, User, and Guest roles for granular access control
+    </Card>
+  </CardGroup>
+</div>
 
-## Create beautiful pages
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <div className="text-center mb-12">
+    <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+      Explore the Documentation
+    </h2>
+    <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+      Dive deeper into specific topics and learn how to make the most of the platform
+    </p>
+  </div>
 
-Everything you need to create world-class documentation.
+  <CardGroup cols={3}>
+    <Card
+      title="Setup Guide"
+      icon="rocket"
+      href="/guides/setup-whatsapp"
+    >
+      Connect your WhatsApp account and configure WAHA
+    </Card>
+    <Card
+      title="Creating Campaigns"
+      icon="wand-magic-sparkles"
+      href="/guides/creating-campaigns"
+    >
+      Learn how to create and manage message campaigns
+    </Card>
+    <Card
+      title="User Management"
+      icon="users"
+      href="/guides/user-management"
+    >
+      Manage user roles and permissions effectively
+    </Card>
+    <Card
+      title="Deployment"
+      icon="server"
+      href="/deployment/vercel"
+    >
+      Deploy your application to production
+    </Card>
+    <Card
+      title="API Reference"
+      icon="code"
+      href="/api/message-campaign"
+    >
+      Explore the tRPC API endpoints and schemas
+    </Card>
+    <Card
+      title="Environment Setup"
+      icon="gear"
+      href="/deployment/environment-variables"
+    >
+      Configure all required environment variables
+    </Card>
+  </CardGroup>
+</div>
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
-
-## Need inspiration?
-
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+<div className="mt-20 mb-16 max-w-5xl mx-auto px-6">
+  <div className="rounded-2xl bg-gradient-to-br from-[#25D366]/10 to-[#128C7E]/10 dark:from-[#25D366]/5 dark:to-[#128C7E]/5 border border-[#25D366]/20 dark:border-[#25D366]/10 p-10 text-center">
+    <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+      Ready to Automate Your WhatsApp Campaigns?
+    </h2>
+    <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-8">
+      Get started with WhatsApp WAHA Dashboard today and streamline your group messaging workflow
+    </p>
+    <a
+      href="/quickstart"
+      className="inline-flex items-center px-8 py-3.5 text-base font-semibold rounded-lg bg-[#25D366] text-white hover:bg-[#128C7E] transition-colors shadow-lg"
+    >
+      Start Building Now
+    </a>
+  </div>
+</div>

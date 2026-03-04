@@ -1,0 +1,144 @@
+---
+title: 'Notification API'
+description: 'API endpoints for sending admin notifications'
+---
+
+The Notification API provides endpoints for sending notifications to administrators about system events.
+
+## notifyAdminOfUserRegistration
+
+Send notification to admin when a new user registers. This is a public endpoint that can be called without authentication.
+
+### Input Parameters
+
+<ParamField path="userName" type="string" required>
+  The name of the newly registered user
+</ParamField>
+
+<ParamField path="userEmail" type="string" required>
+  The email address of the newly registered user (must be valid email format)
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates whether the notification was processed successfully
+</ResponseField>
+
+<ResponseField name="whatsappSent" type="boolean">
+  Indicates whether the WhatsApp notification was sent successfully
+</ResponseField>
+
+<ResponseField name="emailSent" type="boolean">
+  Indicates whether the email notification was sent successfully
+</ResponseField>
+
+<ResponseField name="errors" type="array">
+  Array of error messages if any notifications failed
+</ResponseField>
+
+### Example
+
+```typescript
+const result = await trpc.notification.notifyAdminOfUserRegistration.mutate({
+  userName: "John Doe",
+  userEmail: "john@example.com"
+});
+
+console.log(result);
+// {
+//   success: true,
+//   whatsappSent: true,
+//   emailSent: true,
+//   errors: []
+// }
+```
+
+### Partial Success Example
+
+If one notification method fails, the response will indicate which succeeded:
+
+```typescript
+const result = await trpc.notification.notifyAdminOfUserRegistration.mutate({
+  userName: "Jane Smith",
+  userEmail: "jane@example.com"
+});
+
+console.log(result);
+// {
+//   success: true,
+//   whatsappSent: true,
+//   emailSent: false,
+//   errors: ["Email service unavailable"]
+// }
+```
+
+### Complete Failure Example
+
+```typescript
+try {
+  const result = await trpc.notification.notifyAdminOfUserRegistration.mutate({
+    userName: "Invalid User",
+    userEmail: "invalid@example.com"
+  });
+  
+  console.log(result);
+  // {
+  //   success: false,
+  //   whatsappSent: false,
+  //   emailSent: false,
+  //   errors: ["Failed to connect to notification services"]
+  // }
+} catch (error) {
+  console.error("Notification failed:", error);
+}
+```
+
+---
+
+## Implementation Details
+
+This endpoint uses the Mailgun service to send notifications. The implementation:
+
+1. Accepts user registration details
+2. Attempts to send notifications via both WhatsApp and email channels
+3. Returns a detailed status for each notification method
+4. Continues execution even if one method fails (graceful degradation)
+5. Logs all errors for debugging purposes
+
+### Use Cases
+
+- **User Registration Flow**: Automatically notify admins when new users sign up
+- **Approval Workflow**: Alert admins to review and approve pending user accounts
+- **Audit Trail**: Track when new users join the system
+
+### Integration Example
+
+```typescript
+// In your registration handler
+async function handleUserRegistration(name: string, email: string) {
+  // ... create user in database ...
+  
+  // Notify admin of new registration
+  await trpc.notification.notifyAdminOfUserRegistration.mutate({
+    userName: name,
+    userEmail: email
+  });
+  
+  // Continue with registration flow
+  // Note: Don't block on notification result
+}
+```
+
+---
+
+## Type Definitions
+
+```typescript
+type NotificationResult = {
+  success: boolean;
+  whatsappSent: boolean;
+  emailSent: boolean;
+  errors: string[];
+};
+```

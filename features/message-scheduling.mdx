@@ -1,0 +1,464 @@
+---
+title: 'Message Scheduling'
+description: 'Advanced message scheduling with timezone support and flexible recurrence patterns'
+icon: 'clock'
+---
+
+## Overview
+
+The message scheduling system provides precise control over when WhatsApp messages are sent, with support for multiple timezones, recurring patterns, and automatic message generation based on campaign parameters.
+
+## Timezone Support
+
+All messages are scheduled with timezone awareness using [Luxon](https://moment.github.io/luxon/) for accurate date/time handling.
+
+### Default Timezone
+
+```typescript src/server/api/routers/messageCampaign.ts:20
+timeZone: z.string().default('America/Chicago')
+```
+
+### Timezone Conversion Flow
+
+<Steps>
+  <Step title="Parse User Input">
+    Date and time are parsed in the user's specified timezone
+    ```typescript
+    const startDt = DateTime.fromISO(startDate, { zone: timeZone })
+      .set({ hour: hours, minute: minutes, second: 0, millisecond: 0 });
+    ```
+  </Step>
+  
+  <Step title="Convert to UTC">
+    Scheduled times are stored in UTC for consistency
+    ```typescript
+    const scheduledDateUtc = messageDate.toUTC().toJSDate();
+    ```
+  </Step>
+  
+  <Step title="Schedule Delivery">
+    Background workers process messages based on UTC time
+  </Step>
+</Steps>
+
+<Note>
+  Storing all times in UTC prevents issues with daylight saving time transitions and ensures consistent scheduling across different server locations.
+</Note>
+
+## Time Format Validation
+
+Message times must follow the HH:MM format:
+
+```typescript src/server/api/routers/messageCampaign.ts:40
+const timeRegex = new RegExp(/^(\d{1,2}):(\d{2})$/);
+const timeMatch = timeRegex.exec(messageTime);
+
+if (!timeMatch?.[1] || !timeMatch?.[2]) {
+  throw new Error("Invalid time format");
+}
+
+const hours = parseInt(timeMatch[1], 10);
+const minutes = parseInt(timeMatch[2], 10);
+
+if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+  throw new Error("Invalid time values");
+}
+```
+
+<Tabs>
+  <Tab title="Valid Formats">
+    - `9:30` (9:30 AM)
+    - `09:30` (9:30 AM)
+    - `14:45` (2:45 PM)
+    - `23:59` (11:59 PM)
+  </Tab>
+  
+  <Tab title="Invalid Formats">
+    - `9:30 AM` (no AM/PM)
+    - `25:00` (invalid hour)
+    - `12:75` (invalid minute)
+    - `9:5` (missing leading zero)
+  </Tab>
+</Tabs>
+
+## Recurrence Patterns
+
+The system supports six recurrence patterns with automatic message generation:
+
+```typescript prisma/schema.prisma:103
+enum Recurrence {
+  DAILY
+  WEEKLY
+  SEMI_MONTHLY
+  SEMI_ANNUALLY
+  ANNUALLY
+}
+```
+
+### Recurrence Intervals
+
+```typescript src/server/api/routers/messageCampaign.ts:31
+const recurrenceDaysMap = {
+  DAILY: 1,
+  WEEKLY: 7,
+  SEMI_MONTHLY: 15,
+  MONTHLY: 30,
+  SEMI_ANNUALLY: 182,
+  ANNUALLY: 365,
+}
+```
+
+<CardGroup cols={3}>
+  <Card title="Daily" icon="calendar-day">
+    Messages every day
+    **Interval:** 1 day
+  </Card>
+  <Card title="Weekly" icon="calendar-week">
+    Messages every week
+    **Interval:** 7 days
+  </Card>
+  <Card title="Semi-Monthly" icon="calendar">
+    Messages twice per month
+    **Interval:** 15 days
+  </Card>
+  <Card title="Monthly" icon="calendar-days">
+    Messages once per month
+    **Interval:** 30 days
+  </Card>
+  <Card title="Semi-Annually" icon="calendar-range">
+    Messages twice per year
+    **Interval:** 182 days
+  </Card>
+  <Card title="Annually" icon="calendar-star">
+    Messages once per year
+    **Interval:** 365 days
+  </Card>
+</CardGroup>
+
+## Message Generation Algorithm
+
+Messages are automatically generated based on the date range and recurrence pattern:
+
+```typescript src/server/api/routers/messageCampaign.ts:68
+const messages = [];
+let days_width = 1;
+
+if (isRecurring) {
+  days_width = recurrenceDaysMap[recurrence];
+}
+
+let i = 0;
+let sequenceIndex = 0;
+const daysDiff = Math.ceil(endDt.diff(startDt, 'days').days) + 1;
+const sendTimeUtc = startDt.toUTC().toJSDate();
+
+while (i < daysDiff) {
+  const messageDate = startDt.plus({ days: i });
+  const scheduledDateUtc = messageDate.toUTC().toJSDate();
+  const daysLeft = daysDiff - i - 1;
+  
+  // Build message content
+  let messageContent = '';
+  
+  if (!input.isFreeForm) {
+    if (title) {
+      messageContent += `Campaign Title: ${title}\n`;
+    }
+    messageContent += `Campaign Start Date: ${startDt.toFormat('yyyy-LL-dd')}\n`;
+    messageContent += `Campaign End Date: ${endDt.toFormat('yyyy-LL-dd')}\n`;
+    if (targetAmount) {
+      messageContent += `Contribution Target Amount: ${targetAmount}\n`;
+    }
+    messageContent += `Days Remaining: ${daysLeft}\n\n`;
+  }
+
+  // Select message from sequence
+  const messageText = isRecurring && messageSequence.length > 0
+    ? messageSequence[sequenceIndex % messageSequence.length]
+    : messageTemplate;
+  messageContent += messageText?.replace(/{days_left}/g, daysLeft.toString());
+
+  messages.push({
+    sessionId,
+    content: messageContent,
+    scheduledAt: scheduledDateUtc,
+  });
+
+  i = i + days_width;
+  sequenceIndex++;
+}
+```
+
+### Generation Example
+
+<Accordion title="Daily Campaign (March 1-5, 2026)">
+  ```typescript
+  Input:
+  - startDate: "2026-03-01"
+  - endDate: "2026-03-05"
+  - messageTime: "10:00"
+  - timeZone: "America/New_York"
+  - isRecurring: true
+  - recurrence: "DAILY"
+  
+  Generated Messages:
+  1. March 1, 2026 at 10:00 AM EST
+  2. March 2, 2026 at 10:00 AM EST
+  3. March 3, 2026 at 10:00 AM EST
+  4. March 4, 2026 at 10:00 AM EST
+  5. March 5, 2026 at 10:00 AM EST
+  
+  Total: 5 messages
+  ```
+</Accordion>
+
+<Accordion title="Weekly Campaign (March 1-31, 2026)">
+  ```typescript
+  Input:
+  - startDate: "2026-03-01"
+  - endDate: "2026-03-31"
+  - messageTime: "14:30"
+  - timeZone: "America/Chicago"
+  - isRecurring: true
+  - recurrence: "WEEKLY"
+  
+  Generated Messages:
+  1. March 1, 2026 at 2:30 PM CST
+  2. March 8, 2026 at 2:30 PM CST
+  3. March 15, 2026 at 2:30 PM CST
+  4. March 22, 2026 at 2:30 PM CST
+  5. March 29, 2026 at 2:30 PM CST
+  
+  Total: 5 messages
+  ```
+</Accordion>
+
+## Message Sequences
+
+For recurring campaigns, you can provide unique messages for each occurrence by separating them with asterisks:
+
+```typescript src/server/api/routers/messageCampaign.ts:75
+const hasMessageSequence = messageTemplate.includes('*');
+const messageSequence = hasMessageSequence 
+  ? messageTemplate.split('*').map(msg => msg.trim()).filter(msg => msg.length > 0)
+  : [messageTemplate];
+```
+
+### Sequence Validation
+
+```typescript src/server/api/routers/messageCampaign.ts:81
+if (isRecurring && hasMessageSequence) {
+  const daysDiff = Math.ceil(endDt.diff(startDt, 'days').days) + 1;
+  const requiredMessageCount = Math.ceil(daysDiff / recurrenceDaysMap[recurrence]);
+  
+  if (messageSequence.length !== requiredMessageCount) {
+    throw new Error(
+      `For the selected date range and ${recurrence.toLowerCase()} recurrence, ` +
+      `you need exactly ${requiredMessageCount} unique message${requiredMessageCount > 1 ? 's' : ''} ` +
+      `separated by asterisks (*). Or remove the asterisks to use the same message for all occurrences.`
+    );
+  }
+}
+```
+
+<Warning>
+  The system validates that the number of messages in the sequence matches the calculated number of occurrences. Provide exactly the right number of messages or use a single message without asterisks.
+</Warning>
+
+## Message Data Model
+
+```typescript prisma/schema.prisma:112
+model Message {
+  id                String    @id @default(cuid())
+  sessionId         String
+  content           String
+  scheduledAt       DateTime
+  sentAt            DateTime?
+  isPicked          Boolean   @default(false)
+  retryCount        Int       @default(0)
+  maxRetries        Int       @default(3)
+  MessageCampaignId String
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  isDeleted         Boolean   @default(false)
+  isEdited          Boolean   @default(false)
+  isSent            Boolean   @default(false)
+  isFailed          Boolean   @default(false)
+  failedReason      String?
+
+  MessageCampaign MessageCampaign @relation(fields: [MessageCampaignId], references: [id], onDelete: Cascade)
+}
+```
+
+### Message States
+
+<Steps>
+  <Step title="Scheduled">
+    Message created, waiting for `scheduledAt` time
+    - `isSent: false`
+    - `isPicked: false`
+  </Step>
+  
+  <Step title="Picked for Delivery">
+    Background worker has picked the message for processing
+    - `isPicked: true`
+    - `isSent: false`
+  </Step>
+  
+  <Step title="Sent Successfully">
+    Message delivered to WhatsApp
+    - `isSent: true`
+    - `sentAt: DateTime`
+  </Step>
+  
+  <Step title="Failed">
+    Delivery failed after retries
+    - `isFailed: true`
+    - `failedReason: string`
+  </Step>
+</Steps>
+
+## Retry Logic
+
+Messages support automatic retry on failure:
+
+```typescript
+retryCount: Int @default(0)
+maxRetries: Int @default(3)
+```
+
+If delivery fails, the system will retry up to 3 times before marking the message as permanently failed.
+
+## Date Validation
+
+The system validates date ranges before creating messages:
+
+```typescript src/server/api/routers/messageCampaign.ts:59
+if (!startDt.isValid || !endDt.isValid) {
+  throw new Error("Invalid date format");
+}
+
+if (endDt < startDt) {
+  throw new Error("End date must be after start date");
+}
+```
+
+<Note>
+  Dates must be provided in ISO 8601 format (YYYY-MM-DD). The system will reject invalid dates or end dates before start dates.
+</Note>
+
+## Dynamic Variables
+
+Messages support template variables that are replaced during generation:
+
+<ParamField path="{days_left}" type="number">
+  Replaced with the number of days remaining until campaign end
+</ParamField>
+
+### Variable Replacement
+
+```typescript src/server/api/routers/messageCampaign.ts:128
+messageContent += messageText?.replace(/{days_left}/g, daysLeft.toString());
+```
+
+**Example:**
+
+```text
+Input Template:
+"Only {days_left} days left to contribute!"
+
+Generated Messages:
+Day 1: "Only 4 days left to contribute!"
+Day 2: "Only 3 days left to contribute!"
+Day 3: "Only 2 days left to contribute!"
+Day 4: "Only 1 days left to contribute!"
+Day 5: "Only 0 days left to contribute!"
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Timezone Selection">
+    - Always specify the timezone where your audience is located
+    - Use IANA timezone identifiers (e.g., "America/New_York", "Europe/London")
+    - Account for daylight saving time by using timezone-aware dates
+  </Accordion>
+  
+  <Accordion title="Scheduling Recommendations">
+    - Avoid scheduling messages during late night hours (10 PM - 7 AM)
+    - Consider your audience's time zone when selecting message times
+    - Test with a small campaign before scheduling large-scale campaigns
+  </Accordion>
+  
+  <Accordion title="Message Sequences">
+    - Calculate required message count before creating sequences
+    - Use asterisks (*) only when you want unique messages per occurrence
+    - For repeating messages, use a single template without asterisks
+  </Accordion>
+  
+  <Accordion title="Recurrence Patterns">
+    - DAILY: Best for time-sensitive campaigns (fundraisers, events)
+    - WEEKLY: Good for regular updates and newsletters
+    - MONTHLY: Ideal for membership reminders and billing
+    - Choose based on audience engagement expectations
+  </Accordion>
+</AccordionGroup>
+
+## Common Use Cases
+
+<Tabs>
+  <Tab title="Daily Reminders">
+    ```typescript
+    {
+      startDate: "2026-03-10",
+      endDate: "2026-03-20",
+      messageTime: "09:00",
+      timeZone: "America/New_York",
+      isRecurring: true,
+      recurrence: "DAILY",
+      messageTemplate: "Don't forget to check in today!"
+    }
+    ```
+    Sends the same message every day at 9 AM EST
+  </Tab>
+  
+  <Tab title="Weekly Updates">
+    ```typescript
+    {
+      startDate: "2026-03-01",
+      endDate: "2026-03-31",
+      messageTime: "10:00",
+      timeZone: "America/Chicago",
+      isRecurring: true,
+      recurrence: "WEEKLY",
+      messageTemplate: "Week 1 Update * Week 2 Update * Week 3 Update * Week 4 Update * Week 5 Update"
+    }
+    ```
+    Sends unique messages each week
+  </Tab>
+  
+  <Tab title="One-Time Campaign">
+    ```typescript
+    {
+      startDate: "2026-03-15",
+      endDate: "2026-03-15",
+      messageTime: "14:00",
+      timeZone: "America/Los_Angeles",
+      isRecurring: false,
+      messageTemplate: "Join us for our special event today!"
+    }
+    ```
+    Sends a single message on the specified date
+  </Tab>
+</Tabs>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Campaign Management" icon="bullhorn" href="/features/campaign-management">
+    Learn how to create and manage campaigns
+  </Card>
+  <Card title="Notifications" icon="bell" href="/features/notifications">
+    Configure delivery notifications
+  </Card>
+</CardGroup>

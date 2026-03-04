@@ -1,0 +1,437 @@
+---
+title: 'User API'
+description: 'API endpoints for managing WhatsApp sessions, groups, and contacts'
+---
+
+The User API provides endpoints for users to manage their WhatsApp sessions, retrieve groups and contacts, and control session lifecycle.
+
+## getWhatsAppSession
+
+Retrieve the current user's connected WhatsApp session.
+
+### Response
+
+<ResponseField name="session" type="object | null">
+  WhatsApp session object or null if not connected
+  
+  <ResponseField name="id" type="string">
+    Session ID
+  </ResponseField>
+  
+  <ResponseField name="sessionName" type="string">
+    Unique session name
+  </ResponseField>
+  
+  <ResponseField name="phoneNumber" type="string">
+    Associated phone number
+  </ResponseField>
+  
+  <ResponseField name="userId" type="string">
+    Owner user ID
+  </ResponseField>
+  
+  <ResponseField name="createdAt" type="Date">
+    Session creation timestamp
+  </ResponseField>
+  
+  <ResponseField name="updatedAt" type="Date">
+    Last update timestamp
+  </ResponseField>
+  
+  <ResponseField name="WhatsAppGroups" type="array">
+    Array of associated WhatsApp groups
+    
+    <ResponseField name="id" type="string">
+      Group database ID
+    </ResponseField>
+    
+    <ResponseField name="groupName" type="string">
+      Group name
+    </ResponseField>
+    
+    <ResponseField name="groupId" type="string">
+      WhatsApp group ID
+    </ResponseField>
+    
+    <ResponseField name="campaigns" type="array">
+      Active campaigns for this group
+    </ResponseField>
+  </ResponseField>
+</ResponseField>
+
+### Example
+
+```typescript
+const session = await trpc.user.getWhatsAppSession.query();
+
+if (session) {
+  console.log(session);
+  // {
+  //   id: "cls1234567890",
+  //   sessionName: "session_1234567890",
+  //   phoneNumber: "+1234567890",
+  //   userId: "clx1234567890",
+  //   createdAt: new Date("2024-01-01"),
+  //   WhatsAppGroups: [...]
+  // }
+} else {
+  console.log("No active session");
+}
+```
+
+---
+
+## initiateWhatsAppSession
+
+Create or reconnect to a WhatsApp session for the current user.
+
+### Response
+
+<ResponseField name="sessionName" type="string">
+  The unique session name created or reused
+</ResponseField>
+
+<ResponseField name="id" type="string">
+  The session database ID
+</ResponseField>
+
+### Example
+
+```typescript
+const result = await trpc.user.initiateWhatsAppSession.mutate();
+
+console.log(result);
+// {
+//   sessionName: "session_1234567890",
+//   id: "cls1234567890"
+// }
+```
+
+### Error Cases
+
+- **INTERNAL_SERVER_ERROR**: Failed to create WhatsApp session
+
+---
+
+## getSessionStatus
+
+Check the current status of a WhatsApp session.
+
+### Input Parameters
+
+<ParamField path="sessionName" type="string" required>
+  The session name to check
+</ParamField>
+
+### Response
+
+<ResponseField name="status" type="string">
+  Session status from WAHA API (e.g., "WORKING", "SCAN_QR_CODE", "STOPPED")
+</ResponseField>
+
+### Example
+
+```typescript
+const status = await trpc.user.getSessionStatus.query({
+  sessionName: "session_1234567890"
+});
+
+console.log(status);
+// { status: "WORKING" }
+```
+
+---
+
+## getSessionQR
+
+Retrieve the QR code for authenticating a WhatsApp session.
+
+### Input Parameters
+
+<ParamField path="sessionName" type="string" required>
+  The session name to get the QR code for
+</ParamField>
+
+### Response
+
+<ResponseField name="qr" type="string">
+  Base64-encoded QR code image
+</ResponseField>
+
+### Example
+
+```typescript
+const qrCode = await trpc.user.getSessionQR.query({
+  sessionName: "session_1234567890"
+});
+
+console.log(qrCode);
+// { qr: "iVBORw0KGgoAAAANSUhEUgAA..." }
+
+// Display in HTML
+// <img src={`data:image/png;base64,${qrCode.qr}`} />
+```
+
+---
+
+## restartSession
+
+Restart a WhatsApp session by stopping and starting it.
+
+### Input Parameters
+
+<ParamField path="sessionName" type="string" required>
+  The session name to restart
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates whether the session was restarted successfully
+</ResponseField>
+
+### Example
+
+```typescript
+const result = await trpc.user.restartSession.mutate({
+  sessionName: "session_1234567890"
+});
+
+console.log(result);
+// { success: true }
+```
+
+---
+
+## updateSessionPhone
+
+Update the phone number associated with a session.
+
+### Input Parameters
+
+<ParamField path="id" type="string" required>
+  The session database ID
+</ParamField>
+
+<ParamField path="phoneNumber" type="string" required>
+  The new phone number
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates whether the phone number was updated successfully
+</ResponseField>
+
+### Example
+
+```typescript
+const result = await trpc.user.updateSessionPhone.mutate({
+  id: "cls1234567890",
+  phoneNumber: "+1234567890"
+});
+
+console.log(result);
+// { success: true }
+```
+
+---
+
+## logoutSession
+
+Logout and delete a WhatsApp session.
+
+### Input Parameters
+
+<ParamField path="sessionName" type="string" required>
+  The session name to logout
+</ParamField>
+
+### Response
+
+<ResponseField name="success" type="boolean">
+  Indicates whether the logout was successful
+</ResponseField>
+
+### Example
+
+```typescript
+const result = await trpc.user.logoutSession.mutate({
+  sessionName: "session_1234567890"
+});
+
+console.log(result);
+// { success: true }
+```
+
+---
+
+## getWhatsAppGroups
+
+Retrieve WhatsApp groups for a session with pagination and search.
+
+### Input Parameters
+
+<ParamField path="sessionName" type="string" required>
+  The session name to fetch groups from
+</ParamField>
+
+<ParamField path="limit" type="number" default={10}>
+  Maximum number of groups to return (minimum 1)
+</ParamField>
+
+<ParamField path="cursor" type="number" default={0}>
+  Pagination cursor (offset)
+</ParamField>
+
+<ParamField path="search" type="string">
+  Optional search term to filter groups by name
+</ParamField>
+
+### Response
+
+<ResponseField name="items" type="array">
+  Array of group objects
+  
+  <ResponseField name="groupId" type="string">
+    WhatsApp group ID
+  </ResponseField>
+  
+  <ResponseField name="groupName" type="string">
+    Group name
+  </ResponseField>
+</ResponseField>
+
+<ResponseField name="nextCursor" type="number | undefined">
+  Cursor for the next page, or undefined if no more results
+</ResponseField>
+
+<ResponseField name="total" type="undefined">
+  Total count not available without fetching all groups
+</ResponseField>
+
+### Example
+
+```typescript
+const groups = await trpc.user.getWhatsAppGroups.query({
+  sessionName: "session_1234567890",
+  limit: 10,
+  cursor: 0,
+  search: "Community"
+});
+
+console.log(groups);
+// {
+//   items: [
+//     {
+//       groupId: "120363123456789012@g.us",
+//       groupName: "Community Group"
+//     }
+//   ],
+//   nextCursor: 10
+// }
+```
+
+---
+
+## getWhatsAppContacts
+
+Retrieve WhatsApp contacts for a session with pagination and search.
+
+### Input Parameters
+
+<ParamField path="sessionName" type="string" required>
+  The session name to fetch contacts from
+</ParamField>
+
+<ParamField path="limit" type="number" default={50}>
+  Maximum number of contacts to return (minimum 1)
+</ParamField>
+
+<ParamField path="cursor" type="number" default={0}>
+  Pagination cursor (offset)
+</ParamField>
+
+<ParamField path="search" type="string">
+  Optional search term to filter contacts by name or number
+</ParamField>
+
+### Response
+
+<ResponseField name="items" type="array">
+  Array of contact objects
+  
+  <ResponseField name="groupId" type="string">
+    Contact ID (used as groupId for consistency)
+  </ResponseField>
+  
+  <ResponseField name="groupName" type="string">
+    Contact name
+  </ResponseField>
+  
+  <ResponseField name="number" type="string">
+    Contact phone number
+  </ResponseField>
+  
+  <ResponseField name="isContact" type="boolean">
+    Always true for contacts
+  </ResponseField>
+</ResponseField>
+
+<ResponseField name="nextCursor" type="number | undefined">
+  Cursor for the next page, or undefined if no more results
+</ResponseField>
+
+<ResponseField name="total" type="undefined">
+  Total count not available
+</ResponseField>
+
+### Example
+
+```typescript
+const contacts = await trpc.user.getWhatsAppContacts.query({
+  sessionName: "session_1234567890",
+  limit: 50,
+  cursor: 0,
+  search: "John"
+});
+
+console.log(contacts);
+// {
+//   items: [
+//     {
+//       groupId: "1234567890@c.us",
+//       groupName: "John Doe",
+//       number: "1234567890",
+//       isContact: true
+//     }
+//   ],
+//   nextCursor: 50
+// }
+```
+
+---
+
+## Type Definitions
+
+```typescript
+type SessionStatusResponse = {
+  status: string; // "WORKING" | "SCAN_QR_CODE" | "STOPPED" | etc.
+};
+
+type SessionQRResponse = {
+  qr: string; // Base64-encoded image
+};
+
+type WhatsAppGroup = {
+  groupId: string;
+  groupName: string;
+};
+
+type WhatsAppContact = {
+  groupId: string; // Contact ID
+  groupName: string; // Contact name
+  number: string;
+  isContact: boolean;
+};
+```

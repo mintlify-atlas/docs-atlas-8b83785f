@@ -1,0 +1,385 @@
+---
+title: 'Creating Message Campaigns'
+description: 'Step-by-step guide to creating, scheduling, and managing WhatsApp message campaigns'
+icon: 'bullhorn'
+---
+
+## Overview
+
+Message campaigns allow you to schedule automated WhatsApp messages to your groups. You can create one-time or recurring campaigns with dynamic content, track progress, and manage multiple campaigns simultaneously.
+
+## Understanding Campaign Types
+
+### One-Time Campaigns
+
+Send messages on specific dates without repetition. Perfect for:
+- Event announcements
+- Deadline reminders
+- One-off notifications
+
+### Recurring Campaigns
+
+Automatically send messages at regular intervals. Ideal for:
+- Daily updates or reminders
+- Weekly newsletters
+- Monthly contribution reminders
+- Fundraising campaigns with countdown timers
+
+## Creating Your First Campaign
+
+<Steps>
+  <Step title="Access Campaign Creator">
+    Navigate to the dashboard and click the "Create Campaign" or "Schedule Message" button.
+  </Step>
+
+  <Step title="Select Target Group">
+    Choose the WhatsApp group where you want to send messages:
+    
+    - Use the search box to find specific groups
+    - Browse through paginated group list
+    - Select one group per campaign
+    
+    <Note>
+    You can also target individual contacts by selecting "individuals" as the audience type.
+    </Note>
+  </Step>
+
+  <Step title="Configure Campaign Details">
+    Fill in the campaign information:
+    
+    **Required Fields:**
+    - **Start Date** - When the campaign begins
+    - **End Date** - When the campaign ends
+    - **Message Time** - Time to send messages (format: HH:MM)
+    - **Time Zone** - Select your timezone (default: America/Chicago)
+    - **Message Template** - Your message content
+    
+    **Optional Fields:**
+    - **Campaign Title** - Descriptive name for the campaign
+    - **Target Amount** - For fundraising campaigns
+  </Step>
+
+  <Step title="Set Recurrence Pattern">
+    For recurring campaigns, choose your frequency:
+    
+    - **DAILY** - Send every day
+    - **WEEKLY** - Send once per week
+    - **SEMI_MONTHLY** - Send every 15 days
+    - **MONTHLY** - Send once per month
+    - **SEMI_ANNUALLY** - Send every 6 months
+    - **ANNUALLY** - Send once per year
+  </Step>
+
+  <Step title="Compose Your Message">
+    Write your message content with optional dynamic placeholders:
+    
+    ```text
+    Hello team! This is a reminder about our fundraising campaign.
+    
+    We have {days_left} days remaining to reach our goal.
+    
+    Thank you for your support!
+    ```
+    
+    <Info>
+    The `{days_left}` placeholder automatically calculates remaining days until the campaign end date.
+    </Info>
+  </Step>
+
+  <Step title="Review and Create">
+    Verify all details and click "Create Campaign" to schedule your messages.
+  </Step>
+</Steps>
+
+## Advanced Campaign Features
+
+### Dynamic Message Placeholders
+
+Use placeholders to create personalized, dynamic content:
+
+| Placeholder | Description | Example Output |
+|-------------|-------------|----------------|
+| `{days_left}` | Days remaining until campaign end | "5 days left" |
+
+<Tip>
+Future updates may include additional placeholders like `{group_name}`, `{total_amount}`, and custom variables.
+</Tip>
+
+### Message Sequences for Recurring Campaigns
+
+For recurring campaigns, you can create unique messages for each occurrence by separating them with asterisks (*):
+
+```text
+Week 1: Welcome to our campaign! *
+Week 2: Great progress this week! *
+Week 3: We're halfway there! *
+Week 4: Final push to reach our goal!
+```
+
+<Warning>
+The number of messages must match the calculated occurrences. For example, a 4-week campaign with weekly recurrence needs exactly 4 messages.
+</Warning>
+
+### Free-Form vs. Structured Messages
+
+Toggle the **Free-Form** option to control message formatting:
+
+**Structured Mode (default):**
+```text
+Campaign Title: Spring Fundraiser
+Campaign Start Date: 2026-03-01
+Campaign End Date: 2026-03-30
+Contribution Target Amount: $5000
+Days Remaining: 15
+
+Your custom message here...
+```
+
+**Free-Form Mode:**
+```text
+Your custom message here...
+```
+
+## Campaign Examples
+
+### Example 1: Simple Daily Reminder
+
+```yaml
+Target Group: Project Team
+Start Date: 2026-03-05
+End Date: 2026-03-10
+Message Time: 09:00
+Time Zone: America/New_York
+Recurring: Yes
+Recurrence: DAILY
+Message Template: "Good morning team! Daily standup in 30 minutes."
+```
+
+### Example 2: Fundraising Campaign with Countdown
+
+```yaml
+Target Group: Community Members
+Campaign Title: Annual Fundraiser 2026
+Target Amount: $10,000
+Start Date: 2026-03-01
+End Date: 2026-03-31
+Message Time: 18:00
+Time Zone: America/Chicago
+Recurring: Yes
+Recurrence: WEEKLY
+Free-Form: No
+Message Template: |
+  Weekly Update! We have {days_left} days remaining. *
+  Halfway there! Only {days_left} days left. *
+  Final week! Just {days_left} days to reach our goal. *
+  Last day to contribute! {days_left} days remaining.
+```
+
+### Example 3: Monthly Newsletter
+
+```yaml
+Target Group: All Members
+Campaign Title: Monthly Newsletter
+Start Date: 2026-03-01
+End Date: 2026-12-01
+Message Time: 10:00
+Time Zone: America/Los_Angeles
+Recurring: Yes
+Recurrence: MONTHLY
+Message Template: |
+  March Newsletter: Spring events coming up! *
+  April Newsletter: Registration now open! *
+  May Newsletter: Summer program details...
+  (and so on for each month)
+```
+
+## Managing Active Campaigns
+
+### Viewing Campaign Progress
+
+Once created, campaigns appear in your dashboard with:
+
+- Campaign title and target group
+- Start and end dates
+- Progress bar showing completion percentage
+- Status indicator (SCHEDULED, IN_PROGRESS, COMPLETED, FAILED)
+- Message count (sent vs. total)
+
+### Campaign Statuses
+
+- **SCHEDULED** - Campaign created, messages pending
+- **IN_PROGRESS** - Some messages sent, others pending
+- **COMPLETED** - All messages successfully sent
+- **FAILED** - Error occurred during message delivery
+
+### Editing Campaigns
+
+You can edit campaigns before messages are sent:
+
+<Steps>
+  <Step title="Locate Campaign">
+    Find the campaign in your active campaigns list.
+  </Step>
+
+  <Step title="Click Edit">
+    Select the edit option (only available for campaigns with no sent messages).
+  </Step>
+
+  <Step title="Modify Details">
+    Update any campaign settings: dates, times, messages, or recurrence.
+  </Step>
+
+  <Step title="Save Changes">
+    The system will delete unsent messages and create new ones based on your updates.
+  </Step>
+</Steps>
+
+<Warning>
+You cannot edit campaigns that have already sent messages. This prevents inconsistencies in message sequences.
+</Warning>
+
+### Deleting Campaigns
+
+To delete a campaign:
+
+1. Click the delete button on the campaign card
+2. Confirm deletion
+3. All unsent messages will be cancelled
+4. Campaign will be marked as deleted (soft delete)
+
+<Note>
+Deleted campaigns are not permanently removed from the database but are hidden from the UI and excluded from processing.
+</Note>
+
+## Campaign Analytics
+
+### Tracking Progress
+
+Monitor campaign performance with:
+
+- **Total Messages** - Number of scheduled messages
+- **Sent Messages** - Messages successfully delivered
+- **Pending Messages** - Messages awaiting scheduled time
+- **Failed Messages** - Messages that encountered errors
+- **Completion Percentage** - Visual progress indicator
+
+### Viewing Message History
+
+For each campaign, you can see:
+
+- Individual message content
+- Scheduled send time
+- Actual send time
+- Delivery status
+- Error messages (if any)
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Messages Not Sending">
+    **Check these items:**
+    
+    1. **WhatsApp Connection** - Verify session is CONNECTED
+    2. **Scheduler Service** - Ensure background scheduler is running
+    3. **Scheduled Time** - Confirm time hasn't passed
+    4. **Group Access** - Verify bot has permission to send to group
+    
+    **Review logs:**
+    ```bash
+    pm2 logs whatsapp-scheduler
+    ```
+  </Accordion>
+
+  <Accordion title="Wrong Number of Messages Created">
+    **For recurring campaigns:**
+    
+    The system calculates messages based on:
+    - Date range (end date - start date)
+    - Recurrence frequency (daily, weekly, etc.)
+    
+    **Example calculation:**
+    - Start: March 1, End: March 15 (15 days)
+    - Frequency: WEEKLY (every 7 days)
+    - Expected messages: 3 (Day 1, Day 8, Day 15)
+    
+    If using message sequences, ensure you provide exactly 3 unique messages separated by asterisks.
+  </Accordion>
+
+  <Accordion title="Time Zone Issues">
+    **Symptoms:**
+    - Messages sending at wrong time
+    - Scheduled time doesn't match expected time
+    
+    **Solutions:**
+    1. Verify correct time zone selected during campaign creation
+    2. Remember times are converted to UTC for storage
+    3. Check server time zone matches expected zone
+    4. Use standard time zone names (e.g., "America/Chicago")
+  </Accordion>
+
+  <Accordion title="Campaign Shows FAILED Status">
+    **Common causes:**
+    
+    1. **WhatsApp disconnected** - Reconnect your WhatsApp session
+    2. **Group deleted** - Target group no longer exists
+    3. **API error** - WAHA server issues
+    4. **Network error** - Connection to WAHA server failed
+    
+    **Check error logs:**
+    - Review scheduler logs for specific error messages
+    - Verify WAHA server is accessible
+    - Test WAHA API manually
+  </Accordion>
+
+  <Accordion title="Cannot Edit Campaign">
+    **Reason:**
+    
+    Campaigns cannot be edited once any message has been sent to maintain message sequence integrity.
+    
+    **Workaround:**
+    
+    1. Delete the existing campaign
+    2. Create a new campaign with corrected details
+    3. Adjust dates to account for already-sent messages
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Test First" icon="flask">
+    Create a test campaign with a small group before deploying to larger audiences.
+  </Card>
+  
+  <Card title="Clear Messages" icon="message">
+    Write concise, actionable messages. Include call-to-action when appropriate.
+  </Card>
+  
+  <Card title="Time Zones Matter" icon="clock">
+    Always verify the time zone matches your target audience's location.
+  </Card>
+  
+  <Card title="Monitor Progress" icon="chart-line">
+    Regularly check campaign status to catch and resolve issues quickly.
+  </Card>
+  
+  <Card title="Schedule Wisely" icon="calendar">
+    Avoid sending messages during late night or early morning hours.
+  </Card>
+  
+  <Card title="Use Templates" icon="file-lines">
+    Save successful message templates for future campaigns.
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Message Scheduler" icon="clock" href="/guides/message-scheduler">
+    Learn how the background scheduler works
+  </Card>
+  
+  <Card title="Admin Dashboard" icon="gauge" href="/guides/user-management">
+    Manage users and monitor system health
+  </Card>
+</CardGroup>
